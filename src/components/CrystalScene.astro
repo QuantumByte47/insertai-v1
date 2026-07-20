@@ -385,6 +385,101 @@
       group.add(glint);
     });
 
+    /* ── Neural network on crystal surface ── */
+    const neuralGroup = new THREE.Group();
+    neuralGroup.rotation.copy(crystal.rotation);
+    neuralGroup.scale.setScalar(1.038);
+    group.add(neuralGroup);
+
+    // Node glow texture
+    const _ntc = document.createElement("canvas");
+    _ntc.width = 64; _ntc.height = 64;
+    const _ntx = _ntc.getContext("2d");
+    const _ng = _ntx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    _ng.addColorStop(0, "rgba(255,255,255,1)");
+    _ng.addColorStop(0.12, "rgba(210,235,255,0.85)");
+    _ng.addColorStop(0.35, "rgba(150,190,255,0.25)");
+    _ng.addColorStop(1, "rgba(100,150,255,0)");
+    _ntx.fillStyle = _ng;
+    _ntx.fillRect(0, 0, 64, 64);
+    const nodeTexture = new THREE.CanvasTexture(_ntc);
+
+    // Surface vertices (same positions as the crystal geometry rings)
+    const surfaceVerts = [
+      [0.05,2.78,-0.28],
+      [-0.68,1.84,0.52],[0.14,2.12,0.9],[0.98,1.7,0.32],[1.12,1.5,-0.58],[0.2,1.92,-1.0],[-0.98,1.58,-0.44],
+      [-1.9,0.62,0.82],[-0.88,0.96,1.58],[0.46,0.6,1.7],[1.92,0.22,0.82],[2.16,0.04,-0.62],[0.88,0.44,-1.66],[-0.52,0.04,-1.76],[-2.02,0.06,-0.72],
+      [-1.48,-0.88,0.8],[-0.26,-0.48,1.54],[1.02,-0.74,1.04],[1.8,-1.08,-0.18],[0.78,-0.9,-1.34],[-0.68,-1.2,-1.2],[-1.78,-1.08,-0.2],
+      [-0.84,-2.04,0.34],[0.08,-1.82,0.78],[0.96,-2.18,-0.06],[0.02,-2.38,-0.82],[-1.02,-2.1,-0.36],
+      [-0.1,-2.84,0.05],
+    ];
+
+    // Build edges from crystal face connectivity (exact contour)
+    const _rIdx = [[0],[1,2,3,4,5,6],[7,8,9,10,11,12,13,14],[15,16,17,18,19,20,21],[22,23,24,25,26],[27]];
+    const edgeSet = new Set();
+    const _ae = (a, b) => edgeSet.add(Math.min(a, b) * 100 + Math.max(a, b));
+    for (const ring of _rIdx) { if (ring.length > 1) for (let i = 0; i < ring.length; i++) _ae(ring[i], ring[(i + 1) % ring.length]); }
+    const _wr = (i, c) => ((i % c) + c) % c;
+    for (let r = 0; r < _rIdx.length - 1; r++) {
+      const rA = _rIdx[r], rB = _rIdx[r + 1], segs = Math.max(rA.length, rB.length);
+      for (let i = 0; i < segs; i++) {
+        const a0 = rA[Math.floor((i / segs) * rA.length)];
+        const a1 = rA[_wr(Math.floor(((i + 1) / segs) * rA.length), rA.length)];
+        const b0 = rB[Math.floor((i / segs) * rB.length)];
+        const b1 = rB[_wr(Math.floor(((i + 1) / segs) * rB.length), rB.length)];
+        _ae(a0, b0); _ae(b0, b1);
+        if (rA.length > 1) _ae(a0, b1);
+        if (rA.length > 1 && rB.length > 1) _ae(a0, a1);
+      }
+    }
+    const neuralEdges = [...edgeSet].map((k) => [Math.floor(k / 100), k % 100]);
+
+    // Connection lines
+    const nEdgePos = new Float32Array(neuralEdges.length * 6);
+    neuralEdges.forEach(([a, b], i) => {
+      nEdgePos[i * 6] = surfaceVerts[a][0]; nEdgePos[i * 6 + 1] = surfaceVerts[a][1]; nEdgePos[i * 6 + 2] = surfaceVerts[a][2];
+      nEdgePos[i * 6 + 3] = surfaceVerts[b][0]; nEdgePos[i * 6 + 4] = surfaceVerts[b][1]; nEdgePos[i * 6 + 5] = surfaceVerts[b][2];
+    });
+    const nEdgeGeom = new THREE.BufferGeometry();
+    nEdgeGeom.setAttribute("position", new THREE.BufferAttribute(nEdgePos, 3));
+    const nEdgeMat = new THREE.LineBasicMaterial({
+      color: "#9580ff", transparent: true, opacity: 0.22,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    neuralGroup.add(new THREE.LineSegments(nEdgeGeom, nEdgeMat));
+
+    // Node sprites at each vertex
+    const nColors = ["#22d3ee", "#a78bfa", "#818cf8", "#c084fc", "#60d5ff"];
+    const neuralNodes = [];
+    surfaceVerts.forEach((v, i) => {
+      const mat = new THREE.SpriteMaterial({
+        map: nodeTexture, color: nColors[i % nColors.length],
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const s = new THREE.Sprite(mat);
+      s.position.set(v[0], v[1], v[2]);
+      const sz = 0.09 + Math.random() * 0.06;
+      s.scale.setScalar(sz);
+      neuralGroup.add(s);
+      neuralNodes.push({ sprite: s, phase: Math.random() * Math.PI * 2, baseSize: sz });
+    });
+
+    // Signal pulses traveling along edges
+    const NPULSE = 8;
+    const neuralPulses = [];
+    for (let i = 0; i < NPULSE; i++) {
+      const pm = new THREE.SpriteMaterial({
+        map: nodeTexture, color: "#fff", transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const sp = new THREE.Sprite(pm);
+      sp.scale.setScalar(0.06);
+      sp.visible = false;
+      neuralGroup.add(sp);
+      neuralPulses.push({ sprite: sp, active: false, edgeIdx: 0, progress: 0, speed: 0 });
+    }
+
     scene.add(new THREE.HemisphereLight("#e7ffff", "#120747", 1.12));
     const iceKey = new THREE.DirectionalLight("#f5ffff", 3.2);
     iceKey.position.set(-4.2, 3.5, 4.6);
@@ -436,6 +531,7 @@
       core.rotation.copy(crystal.rotation);
       rim.rotation.copy(crystal.rotation);
       fractures.rotation.copy(crystal.rotation);
+      neuralGroup.rotation.copy(crystal.rotation);
     };
 
     const tick = () => {
@@ -450,6 +546,34 @@
       crystal.rotation.z = 0.2 + Math.sin(t * 0.32) * 0.045;
       syncRotations();
       particleCloud.rotation.y = t * 0.01;
+
+      // Neural network update
+      for (const n of neuralNodes) {
+        const p = Math.sin(t * 1.5 + n.phase) * 0.5 + 0.5;
+        n.sprite.scale.setScalar(n.baseSize * (0.85 + p * 0.3));
+        n.sprite.material.opacity = 0.4 + p * 0.4;
+      }
+      for (const p of neuralPulses) {
+        if (p.active) {
+          p.progress += p.speed * 0.016;
+          if (p.progress >= 1) { p.active = false; p.sprite.visible = false; }
+          else {
+            const [a, b] = neuralEdges[p.edgeIdx];
+            const va = surfaceVerts[a], vb = surfaceVerts[b];
+            p.sprite.position.set(va[0] + (vb[0] - va[0]) * p.progress, va[1] + (vb[1] - va[1]) * p.progress, va[2] + (vb[2] - va[2]) * p.progress);
+            const fi = Math.min(p.progress * 5, 1), fo = Math.min((1 - p.progress) * 5, 1);
+            p.sprite.material.opacity = fi * fo * 0.85;
+          }
+        } else if (Math.random() < 0.012) {
+          p.edgeIdx = Math.floor(Math.random() * neuralEdges.length);
+          p.progress = 0;
+          p.speed = 0.4 + Math.random() * 0.6;
+          p.active = true;
+          p.sprite.visible = true;
+          p.sprite.material.color.set(["#ffffff", "#22d3ee", "#c084fc"][Math.floor(Math.random() * 3)]);
+        }
+      }
+
       renderer.render(scene, camera);
 
       // Measure frame time for adaptive quality
@@ -491,6 +615,11 @@
       iceMap.dispose();
       glintTexture.dispose();
       envMap.dispose();
+      nodeTexture.dispose();
+      nEdgeGeom.dispose();
+      nEdgeMat.dispose();
+      neuralNodes.forEach((n) => n.sprite.material.dispose());
+      neuralPulses.forEach((p) => p.sprite.material.dispose());
     }, { once: true });
   });
 </script>
