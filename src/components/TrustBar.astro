@@ -1,0 +1,30 @@
+---
+const industries = [
+  "Real Estate", "Healthcare", "Roofing", "Construction", "Solar",
+  "Franchising", "Service Businesses", "Finance", "Legal", "E-commerce",
+];
+// Duplicated once so the -50% translate loops seamlessly.
+const track = [...industries, ...industries];
+---
+
+<section class="-mt-px">
+  <div class="site-shell">
+    <div class="glass overflow-hidden rounded-b-[28px] border-t-0 px-6 py-6">
+      <p class="mono mb-5 text-center text-[--color-fg-dim]">
+        Delivering across 20+ industries
+      </p>
+      <div class="marquee">
+        <div class="marquee-track">
+          {track.map((name, i) => (
+            <span
+              aria-hidden={i >= industries.length ? "true" : undefined}
+              class="whitespace-nowrap text-lg font-semibold tracking-[0.01em] text-white/55 transition hover:text-white"
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

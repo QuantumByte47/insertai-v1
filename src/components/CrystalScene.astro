@@ -1,0 +1,473 @@
+<div class="crystal-scene" data-crystal-scene aria-hidden="true">
+  <canvas class="crystal-canvas"></canvas>
+  <div class="crystal-sheen"></div>
+</div>
+
+<script>
+  import * as THREE from "three";
+  import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+
+  const makeTexture = (variant) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext("2d");
+
+    const bg = ctx.createLinearGradient(0, 0, 1024, 1024);
+    if (variant === "ice") {
+      bg.addColorStop(0, "#f5ffff");
+      bg.addColorStop(0.28, "#82f3ff");
+      bg.addColorStop(0.58, "#a7b6ff");
+      bg.addColorStop(1, "#17205b");
+    } else {
+      bg.addColorStop(0, "#110822");
+      bg.addColorStop(0.24, "#2d22bd");
+      bg.addColorStop(0.56, "#744bff");
+      bg.addColorStop(0.78, "#160829");
+      bg.addColorStop(1, "#03030d");
+    }
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    for (let i = 0; i < 26; i += 1) {
+      const x = Math.random() * 1024;
+      const y = Math.random() * 1024;
+      const r = 90 + Math.random() * 300;
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const color = variant === "ice" ? "125,245,255" : i % 5 === 0 ? "255,150,54" : "145,82,255";
+      glow.addColorStop(0, `rgba(${color},${0.22 + Math.random() * 0.22})`);
+      glow.addColorStop(0.45, `rgba(${color},0.06)`);
+      glow.addColorStop(1, `rgba(${color},0)`);
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, 1024, 1024);
+    }
+
+    ctx.globalCompositeOperation = "screen";
+    for (let i = 0; i < 34; i += 1) {
+      ctx.beginPath();
+      const sx = Math.random() * 1024;
+      const sy = Math.random() * 1024;
+      ctx.moveTo(sx, sy);
+      const segments = 2 + Math.floor(Math.random() * 3);
+      for (let j = 0; j < segments; j += 1) {
+        ctx.lineTo(sx + (Math.random() - 0.5) * 460, sy + (Math.random() - 0.5) * 460);
+      }
+      ctx.strokeStyle = variant === "ice" ? "rgba(240,255,255,.32)" : "rgba(180,220,255,.17)";
+      ctx.lineWidth = Math.random() * 1.8 + 0.4;
+      ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.anisotropy = 8;
+    return texture;
+  };
+
+  const makeGlintTexture = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 58);
+    glow.addColorStop(0, "rgba(255,255,255,1)");
+    glow.addColorStop(0.14, "rgba(210,252,255,.95)");
+    glow.addColorStop(0.38, "rgba(110,235,255,.24)");
+    glow.addColorStop(1, "rgba(110,235,255,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.strokeStyle = "rgba(255,255,255,.8)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(64, 8);
+    ctx.lineTo(64, 120);
+    ctx.moveTo(8, 64);
+    ctx.lineTo(120, 64);
+    ctx.stroke();
+    return new THREE.CanvasTexture(canvas);
+  };
+
+  const makeShardGeometry = (side = "all") => {
+    const rings = [
+      [[0.05, 2.78, -0.28]],
+      [
+        [-0.68, 1.84, 0.52], [0.14, 2.12, 0.9], [0.98, 1.7, 0.32],
+        [1.12, 1.5, -0.58], [0.2, 1.92, -1.0], [-0.98, 1.58, -0.44],
+      ],
+      [
+        [-1.9, 0.62, 0.82], [-0.88, 0.96, 1.58], [0.46, 0.6, 1.7],
+        [1.92, 0.22, 0.82], [2.16, 0.04, -0.62], [0.88, 0.44, -1.66],
+        [-0.52, 0.04, -1.76], [-2.02, 0.06, -0.72],
+      ],
+      [
+        [-1.48, -0.88, 0.8], [-0.26, -0.48, 1.54], [1.02, -0.74, 1.04],
+        [1.8, -1.08, -0.18], [0.78, -0.9, -1.34], [-0.68, -1.2, -1.2],
+        [-1.78, -1.08, -0.2],
+      ],
+      [
+        [-0.84, -2.04, 0.34], [0.08, -1.82, 0.78], [0.96, -2.18, -0.06],
+        [0.02, -2.38, -0.82], [-1.02, -2.1, -0.36],
+      ],
+      [[-0.1, -2.84, 0.05]],
+    ];
+
+    const vertices = rings.flat();
+    const offsets = [];
+    rings.reduce((sum, ring) => {
+      offsets.push(sum);
+      return sum + ring.length;
+    }, 0);
+
+    const wrap = (i, count) => ((i % count) + count) % count;
+    const faces = [];
+    const connect = (a, b) => {
+      const ringA = rings[a];
+      const ringB = rings[b];
+      const offsetA = offsets[a];
+      const offsetB = offsets[b];
+      const segments = Math.max(ringA.length, ringB.length);
+      for (let i = 0; i < segments; i += 1) {
+        const a0 = offsetA + Math.floor((i / segments) * ringA.length);
+        const a1 = offsetA + wrap(Math.floor(((i + 1) / segments) * ringA.length), ringA.length);
+        const b0 = offsetB + Math.floor((i / segments) * ringB.length);
+        const b1 = offsetB + wrap(Math.floor(((i + 1) / segments) * ringB.length), ringB.length);
+        if (ringA.length === 1) faces.push([a0, b0, b1]);
+        else if (ringB.length === 1) faces.push([a0, b0, a1]);
+        else faces.push([a0, b0, b1], [a0, b1, a1]);
+      }
+    };
+    for (let i = 0; i < rings.length - 1; i += 1) connect(i, i + 1);
+
+    const positions = [];
+    const uvs = [];
+    const triangle = new THREE.Triangle();
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+
+    faces
+      .filter((face) => {
+        if (side === "all") return true;
+        const x = face.reduce((sum, index) => sum + vertices[index][0], 0) / 3;
+        return side === "ice" ? x < -0.82 : x >= -0.82;
+      })
+      .forEach((face) => {
+        a.fromArray(vertices[face[0]]);
+        b.fromArray(vertices[face[1]]);
+        c.fromArray(vertices[face[2]]);
+        triangle.set(a, b, c);
+        face.forEach((index) => {
+          const [x, y, z] = vertices[index];
+          positions.push(x, y, z);
+          uvs.push(THREE.MathUtils.clamp((x + 2.2) / 4.4 + z * 0.04, 0, 1), THREE.MathUtils.clamp(1 - (y + 2.85) / 5.7, 0, 1));
+        });
+      });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+
+  const roots = document.querySelectorAll("[data-crystal-scene]");
+
+  roots.forEach((root) => {
+    const canvas = root.querySelector("canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+    camera.position.set(0.12, 0.02, 9.6);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.48;
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
+
+    const group = new THREE.Group();
+    group.scale.setScalar(0.82);
+    scene.add(group);
+
+    const textureLoader = new THREE.TextureLoader();
+    const prepareMap = (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.anisotropy = 8;
+      return texture;
+    };
+    const violetMap = prepareMap(textureLoader.load("/assets/generated/crystal-texture-violet.webp"));
+    const iceMap = prepareMap(textureLoader.load("/assets/generated/crystal-texture-ice.webp"));
+    const glintTexture = makeGlintTexture();
+    const crystalGeometry = makeShardGeometry("all");
+    const iceGeometry = makeShardGeometry("ice");
+    const coreGeometry = makeShardGeometry("all");
+
+    const crystal = new THREE.Mesh(
+      crystalGeometry,
+      new THREE.MeshPhysicalMaterial({
+        color: "#6d54ff",
+        map: violetMap,
+        roughness: 0.035,
+        metalness: 0,
+        transmission: 0.4,
+        thickness: 1.65,
+        attenuationColor: "#2e1fb1",
+        attenuationDistance: 1.1,
+        transparent: true,
+        opacity: 0.62,
+        ior: 1.78,
+        specularIntensity: 1,
+        specularColor: "#d5dcff",
+        envMapIntensity: 2.5,
+        clearcoat: 1,
+        clearcoatRoughness: 0.01,
+        iridescence: 0.45,
+        iridescenceIOR: 1.5,
+        iridescenceThicknessRange: [120, 380],
+        emissive: "#1200a0",
+        emissiveIntensity: 0.18,
+        flatShading: true,
+      })
+    );
+    crystal.rotation.set(-0.22, 0.54, 0.2);
+    group.add(crystal);
+
+    const facetCoat = new THREE.Mesh(
+      crystalGeometry,
+      new THREE.MeshStandardMaterial({
+        color: "#8a72ff",
+        map: violetMap,
+        roughness: 0.18,
+        metalness: 0.04,
+        transparent: false,
+        emissive: "#160088",
+        emissiveIntensity: 0.34,
+        envMapIntensity: 2.35,
+        flatShading: true,
+      })
+    );
+    facetCoat.rotation.copy(crystal.rotation);
+    facetCoat.scale.setScalar(1.008);
+    group.add(facetCoat);
+
+    const iceSide = new THREE.Mesh(
+      iceGeometry,
+      new THREE.MeshPhysicalMaterial({
+        color: "#e8ffff",
+        map: iceMap,
+        roughness: 0,
+        metalness: 0,
+        transmission: 0.45,
+        thickness: 1.4,
+        attenuationColor: "#dbffff",
+        attenuationDistance: 0.9,
+        transparent: true,
+        opacity: 0.5,
+        ior: 1.44,
+        specularIntensity: 1,
+        specularColor: "#ffffff",
+        envMapIntensity: 2.2,
+        clearcoat: 1,
+        clearcoatRoughness: 0,
+        iridescence: 0.22,
+        emissive: "#75efff",
+        emissiveIntensity: 0.22,
+        flatShading: true,
+      })
+    );
+    iceSide.rotation.copy(crystal.rotation);
+    iceSide.scale.setScalar(1.012);
+    group.add(iceSide);
+
+    const core = new THREE.Mesh(
+      coreGeometry,
+      new THREE.MeshPhysicalMaterial({
+        color: "#07031d",
+        map: violetMap,
+        roughness: 0.16,
+        transmission: 0.12,
+        thickness: 1.2,
+        transparent: true,
+        opacity: 0.28,
+        envMapIntensity: 0.7,
+        emissive: "#18006d",
+        emissiveIntensity: 0.18,
+        flatShading: true,
+      })
+    );
+    core.rotation.copy(crystal.rotation);
+    core.scale.setScalar(0.56);
+    group.add(core);
+
+    const rim = new THREE.Mesh(
+      crystalGeometry,
+      new THREE.MeshBasicMaterial({
+        color: "#78efff",
+        transparent: true,
+        opacity: 0.08,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide,
+        depthWrite: false,
+      })
+    );
+    rim.rotation.copy(crystal.rotation);
+    rim.scale.setScalar(1.03);
+    group.add(rim);
+
+    const fractureGeometry = new THREE.BufferGeometry();
+    fractureGeometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute([
+        -1.2, 1.52, 0.62, -0.24, 0.58, 1.18,
+        -0.92, 0.12, 1.08, 0.62, -0.52, 0.94,
+        -0.48, -1.12, 0.82, 0.92, -1.6, 0.04,
+        0.44, 1.28, 0.78, 1.28, 0.1, 0.48,
+        -1.38, 0.52, -0.18, -0.5, -0.4, -0.86,
+      ], 3)
+    );
+    const fractures = new THREE.LineSegments(
+      fractureGeometry,
+      new THREE.LineBasicMaterial({
+        color: "#dffcff",
+        transparent: true,
+        opacity: 0.18,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    fractures.rotation.copy(crystal.rotation);
+    group.add(fractures);
+
+    const particleCount = 80;
+    const particles = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i += 1) {
+      const spread = Math.random() ** 0.82;
+      particles[i * 3] = -1.25 + (Math.random() - 0.5) * 4.2 * spread;
+      particles[i * 3 + 1] = (Math.random() - 0.5) * 4.0 * spread;
+      particles[i * 3 + 2] = (Math.random() - 0.5) * 2.0 * spread;
+    }
+    const particleGeometry = new THREE.BufferGeometry();
+    particleGeometry.setAttribute("position", new THREE.BufferAttribute(particles, 3));
+    const particleCloud = new THREE.Points(
+      particleGeometry,
+      new THREE.PointsMaterial({
+        color: "#dffcff",
+        size: 0.018,
+        transparent: true,
+        opacity: 0.44,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    group.add(particleCloud);
+
+    const glintMaterial = new THREE.SpriteMaterial({
+      map: glintTexture,
+      color: "#eaffff",
+      transparent: true,
+      opacity: 0.68,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    [
+      [-0.92, 1.1, 0.76, 0.42],
+      [-1.24, 0.14, 0.56, 0.28],
+      [-0.54, -1.02, 0.9, 0.24],
+      [0.72, 0.9, 0.72, 0.18],
+    ].forEach(([x, y, z, size]) => {
+      const glint = new THREE.Sprite(glintMaterial.clone());
+      glint.position.set(x, y, z);
+      glint.scale.set(size, size, size);
+      group.add(glint);
+    });
+
+    scene.add(new THREE.HemisphereLight("#e7ffff", "#120747", 1.12));
+    const iceKey = new THREE.DirectionalLight("#f5ffff", 3.2);
+    iceKey.position.set(-4.2, 3.5, 4.6);
+    scene.add(iceKey);
+    const blue = new THREE.PointLight("#25dfff", 6.2, 18);
+    blue.position.set(-3.8, 1.7, 3.6);
+    scene.add(blue);
+    const violet = new THREE.PointLight("#8b49ff", 7.0, 16);
+    violet.position.set(3.25, -1.28, 3.7);
+    scene.add(violet);
+    const amber = new THREE.PointLight("#ff9b38", 1.55, 9);
+    amber.position.set(1.1, -2.05, 2.0);
+    scene.add(amber);
+
+    const pointer = { x: 0, y: 0 };
+    const onPointerMove = (event) => {
+      const rect = root.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+      pointer.y = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+    };
+    root.addEventListener("pointermove", onPointerMove);
+
+    const resize = () => {
+      const rect = root.getBoundingClientRect();
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    };
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const startedAt = performance.now();
+
+    const syncRotations = () => {
+      iceSide.rotation.copy(crystal.rotation);
+      facetCoat.rotation.copy(crystal.rotation);
+      core.rotation.copy(crystal.rotation);
+      rim.rotation.copy(crystal.rotation);
+      fractures.rotation.copy(crystal.rotation);
+    };
+
+    const tick = () => {
+      const t = (performance.now() - startedAt) / 1000;
+      group.rotation.y = t * (reduceMotion ? 0.018 : 0.075) + pointer.x * 0.095;
+      group.rotation.x = -0.06 + Math.sin(t * 0.38) * 0.03 - pointer.y * 0.07;
+      crystal.rotation.z = 0.2 + Math.sin(t * 0.32) * 0.045;
+      syncRotations();
+      particleCloud.rotation.y = t * 0.01;
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(tick);
+    };
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(root);
+    resize();
+    tick();
+
+    document.addEventListener("astro:before-swap", () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      root.removeEventListener("pointermove", onPointerMove);
+      renderer.dispose();
+      crystalGeometry.dispose();
+      iceGeometry.dispose();
+      coreGeometry.dispose();
+      fractureGeometry.dispose();
+      particleGeometry.dispose();
+      violetMap.dispose();
+      iceMap.dispose();
+      glintTexture.dispose();
+      envMap.dispose();
+      pmrem.dispose();
+    }, { once: true });
+  });
+</script>

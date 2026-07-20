@@ -1,0 +1,22 @@
+# build output
+dist/
+# dependencies
+node_modules/
+.pnpm-store/
+# generated types
+.astro/
+# logs
+npm-debug.log*
+pnpm-debug.log*
+# env
+.env
+.env.production
+# os
+.DS_Store
+
+# wortholic stragglers (not part of Insert AI)
+design-qa.md
+qa-artifacts/
+public/og.svg
+public/logo-mark.svg
+public/logo-mark.png

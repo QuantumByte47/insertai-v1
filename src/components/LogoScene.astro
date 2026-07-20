@@ -1,0 +1,293 @@
+---
+/*
+ * 3D brand logo — glossy blue→violet "data funnel converging into a > bracket".
+ * Three.js, transparent canvas (hero gradient shows through), MSAA anti-aliasing.
+ * The original CrystalScene.astro is preserved (unused) and can be swapped back.
+ */
+---
+
+<div class="crystal-scene" data-logo-scene aria-hidden="true">
+  <div class="logo-backdrop"></div>
+  <canvas class="crystal-canvas"></canvas>
+</div>
+
+<style>
+  .logo-backdrop {
+    position: absolute;
+    inset: -22% -16%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 48% 44%, rgba(60, 42, 205, 0.3), transparent 48%),
+      radial-gradient(circle at 68% 60%, rgba(176, 76, 255, 0.22), transparent 58%),
+      radial-gradient(circle at 34% 66%, rgba(25, 211, 255, 0.16), transparent 54%),
+      radial-gradient(circle at 50% 50%, rgba(5, 10, 36, 0.42), transparent 76%);
+    filter: blur(42px);
+    opacity: 0.88;
+  }
+</style>
+
+<script>
+  import * as THREE from "three";
+  import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+
+  const BLUE = "#27d8ff";
+  const VIOLET = "#a458ff";
+
+  const roundedRect = (L, W, r) => {
+    const s = new THREE.Shape();
+    const x = -L / 2, y = -W / 2;
+    s.moveTo(x + r, y);
+    s.lineTo(x + L - r, y);
+    s.quadraticCurveTo(x + L, y, x + L, y + r);
+    s.lineTo(x + L, y + W - r);
+    s.quadraticCurveTo(x + L, y + W, x + L - r, y + W);
+    s.lineTo(x + r, y + W);
+    s.quadraticCurveTo(x, y + W, x, y + W - r);
+    s.lineTo(x, y + r);
+    s.quadraticCurveTo(x, y, x + r, y);
+    return s;
+  };
+  const EXTRUDE = { depth: 0.42, bevelEnabled: true, bevelThickness: 0.065, bevelSize: 0.06, bevelSegments: 6, curveSegments: 14 };
+
+  const bar = (p0, p1, W, mat) => {
+    const dx = p1[0] - p0[0], dy = p1[1] - p0[1];
+    const len = Math.hypot(dx, dy);
+    const geo = new THREE.ExtrudeGeometry(roundedRect(len + W * 0.6, W, W * 0.46), EXTRUDE);
+    geo.translate(0, 0, -EXTRUDE.depth / 2);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, 0);
+    m.rotation.z = Math.atan2(dy, dx);
+    return m;
+  };
+
+  const up = new THREE.Vector3(0, 1, 0);
+  const tube = (p0, p1, radius, mat) => {
+    const a = new THREE.Vector3(p0[0], p0[1], 0), b = new THREE.Vector3(p1[0], p1[1], 0);
+    const dir = new THREE.Vector3().subVectors(b, a);
+    const geo = new THREE.CylinderGeometry(radius, radius, dir.length(), 28);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.copy(a).addScaledVector(dir, 0.5);
+    m.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+    return m;
+  };
+
+  const makeGlintTexture = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 58);
+    glow.addColorStop(0, "rgba(255,255,255,1)");
+    glow.addColorStop(0.2, "rgba(112,236,255,.84)");
+    glow.addColorStop(0.48, "rgba(135,70,255,.22)");
+    glow.addColorStop(1, "rgba(50,170,255,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.strokeStyle = "rgba(255,255,255,.86)";
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(64, 12);
+    ctx.lineTo(64, 116);
+    ctx.moveTo(12, 64);
+    ctx.lineTo(116, 64);
+    ctx.stroke();
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  };
+
+  document.querySelectorAll("[data-logo-scene]").forEach((root) => {
+    const canvas = root.querySelector("canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+    camera.position.set(0.2, 0.1, 7.35);
+    camera.lookAt(-0.12, 0.02, 0);
+
+    // antialias:true => MSAA on the default framebuffer (lightweight, crisp). alpha:true => transparent.
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.62;
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
+
+    // Shared surface texture for the new hero logo model.
+    const tex = new THREE.TextureLoader().load("/assets/generated/hero-logo-texture-dark-purple-ice.webp");
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1.28, 1.28);
+    tex.anisotropy = 8;
+
+    const group = new THREE.Group();
+    group.scale.setScalar(1.26);
+    group.rotation.set(-0.12, -0.26, 0.025);
+    scene.add(group);
+    const logo = new THREE.Group();
+    logo.position.set(-0.16, 0.02, 0);
+    group.add(logo);
+
+    // Dark glass keeps the ice texture visible without blowing out the hero.
+    const glossy = (color, emissive, ei) => new THREE.MeshPhysicalMaterial({
+      color,
+      map: tex,
+      roughness: 0.18,
+      metalness: 0.02,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06,
+      emissive,
+      emissiveIntensity: ei,
+      envMapIntensity: 1.05,
+      transmission: 0.18,
+      thickness: 0.9,
+      attenuationColor: "#121c9d",
+      attenuationDistance: 1.35,
+      iridescence: 0.42,
+      iridescenceIOR: 1.55,
+      iridescenceThicknessRange: [160, 520],
+      specularIntensity: 1,
+      specularColor: "#d6efff",
+    });
+    const bodyMat = glossy("#2636c7", "#10005f", 0.11);   // hexagon + letters
+    const neonMat = glossy("#5edcff", "#5d22ff", 0.34);   // inner neon outline
+    const traceMat = glossy("#2d6fff", "#07156f", 0.2);   // circuit traces
+    const termMat = glossy("#8858ff", "#5e1cff", 0.34);   // trace terminals
+    const glintTexture = makeGlintTexture();
+
+    const polyBars = (pts, w, mat, joints = true) => {
+      for (let k = 0; k < pts.length - 1; k++) logo.add(bar(pts[k], pts[k + 1], w, mat));
+      if (joints) {
+        for (let k = 1; k < pts.length - 1; k++) {
+          const s = new THREE.Mesh(new THREE.SphereGeometry(w * 0.5, 20, 20), mat);
+          s.position.set(pts[k][0], pts[k][1], 0);
+          logo.add(s);
+        }
+      }
+    };
+
+    // ---- hexagon frame (flat-top, open on the right), double outline ----
+    const hexOuter = [[1.0, 0.62], [0.65, 1.13], [-0.65, 1.13], [-1.3, 0], [-0.65, -1.13], [0.65, -1.13], [1.0, -0.62]];
+    const hexInner = hexOuter.map(([x, y]) => [x * 0.78, y * 0.78]);
+    polyBars(hexOuter, 0.16, bodyMat);
+    polyBars(hexInner, 0.055, neonMat);
+
+    // ---- "AI" letters in the centre ----
+    const lw = 0.12;
+    const Ax = -0.46;
+    logo.add(bar([Ax, 0.5], [Ax - 0.32, -0.5], lw, bodyMat));     // A — left leg
+    logo.add(bar([Ax, 0.5], [Ax + 0.32, -0.5], lw, bodyMat));     // A — right leg
+    logo.add(bar([Ax - 0.16, -0.04], [Ax + 0.16, -0.04], lw, bodyMat)); // A — crossbar
+    const Ix = 0.2;
+    logo.add(bar([Ix, 0.5], [Ix, -0.5], lw, bodyMat));            // I — stem
+    logo.add(bar([Ix - 0.15, 0.5], [Ix + 0.15, 0.5], lw, bodyMat));   // I — top
+    logo.add(bar([Ix - 0.15, -0.5], [Ix + 0.15, -0.5], lw, bodyMat)); // I — bottom
+
+    // ---- circuit traces exiting the right opening, each ending in a ring terminal ----
+    const traces = [
+      [[0.5, 0.62], [1.15, 0.62], [1.4, 0.88]],
+      [[0.5, 0.22], [1.6, 0.22]],
+      [[0.5, -0.22], [1.3, -0.22], [1.55, -0.46]],
+      [[0.5, -0.62], [1.75, -0.62]],
+    ];
+    traces.forEach((poly) => {
+      for (let k = 0; k < poly.length - 1; k++) logo.add(tube(poly[k], poly[k + 1], 0.038, traceMat));
+      const end = poly[poly.length - 1];
+      const term = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.034, 16, 30), termMat);
+      term.position.set(end[0], end[1], 0);
+      logo.add(term);
+    });
+
+    [
+      [-0.65, 1.13, 0.24, 0.22],
+      [0.98, 0.62, 0.28, 0.18],
+      [1.72, -0.62, 0.18, 0.2],
+      [-1.28, 0, 0.2, 0.16],
+      [0.18, 0.5, 0.15, 0.14],
+    ].forEach(([x, y, z, size]) => {
+      const glint = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glintTexture,
+        color: "#d9fbff",
+        transparent: true,
+        opacity: 0.72,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }));
+      glint.position.set(x, y, z);
+      glint.scale.setScalar(size);
+      logo.add(glint);
+    });
+
+    // ---- lighting: dark cinematic base, selective cyan edges, purple core ----
+    scene.add(new THREE.HemisphereLight("#5ccfff", "#020512", 0.24));
+    const key = new THREE.DirectionalLight("#d8faff", 0.26);
+    key.position.set(-3.2, 3.4, 4.8);
+    scene.add(key);
+    const blue = new THREE.PointLight(BLUE, 4.6, 18, 2.2);
+    blue.position.set(-3.7, -0.85, 3.2);
+    scene.add(blue);
+    const violet = new THREE.PointLight(VIOLET, 6.2, 18, 2.1);
+    violet.position.set(2.6, 0.92, 2.8);
+    scene.add(violet);
+    const coreGlow = new THREE.PointLight("#3314ff", 2.8, 9, 2.5);
+    coreGlow.position.set(-0.16, -0.08, 1.1);
+    scene.add(coreGlow);
+    const backBlue = new THREE.PointLight("#2c87ff", 2.8, 18, 2.4);
+    backBlue.position.set(1.5, 1.2, -4.2);
+    scene.add(backBlue);
+    const backViolet = new THREE.PointLight("#7d22ff", 3.8, 18, 2.2);
+    backViolet.position.set(-1.8, -1.2, -3.8);
+    scene.add(backViolet);
+
+    const pointer = { x: 0, y: 0 };
+    const onPointerMove = (e) => {
+      const rect = root.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      pointer.y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    };
+    root.addEventListener("pointermove", onPointerMove);
+
+    const resize = () => {
+      const rect = root.getBoundingClientRect();
+      const w = Math.max(1, rect.width), h = Math.max(1, rect.height);
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    };
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const start = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const t = (performance.now() - start) / 1000;
+      // static front-facing by default; rotate with the pointer (no auto-spin)
+      const targetY = -0.2 + pointer.x * 0.42;
+      const targetX = -0.18 - pointer.y * 0.22;
+      logo.rotation.y += (targetY - logo.rotation.y) * 0.07;
+      logo.rotation.x += (targetX - logo.rotation.x) * 0.07;
+      logo.position.y = reduceMotion ? 0 : Math.sin(t * 0.9) * 0.035;
+      logo.rotation.z = Math.sin(t * 0.42) * 0.012;
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(tick);
+    };
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(root);
+    resize();
+    tick();
+
+    document.addEventListener("astro:before-swap", () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      root.removeEventListener("pointermove", onPointerMove);
+      renderer.dispose();
+      envMap.dispose();
+      tex.dispose();
+      pmrem.dispose();
+    }, { once: true });
+  });
+</script>

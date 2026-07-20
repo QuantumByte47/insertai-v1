@@ -1,0 +1,73 @@
+---
+import { site } from "../data/site";
+const year = 2026;
+---
+
+<footer class="pb-10 pt-6">
+  <div class="site-shell">
+    <div class="grid gap-10 border-t border-white/10 pt-8 md:grid-cols-[1.4fr_1fr_1fr_1fr_1.2fr]">
+      <div>
+        <a href="#top" class="flex items-center text-white" aria-label={site.name}>
+          <img src="/insertai-logo.webp" alt={`${site.name} logo`} width="1448" height="350" class="h-7 w-auto" />
+        </a>
+        <p class="mt-5 max-w-xs text-sm leading-6 text-white/55">
+          A creative automation agency shaping brands, products, and experiences for a digital-first world.
+        </p>
+        <div class="mt-5 flex gap-2">
+          {["in", "x", "ig", "yt"].map((item) => (
+            <a href="#" aria-label={item} class="grid h-8 w-8 place-items-center rounded-full border border-white/10 text-[11px] font-bold text-white/60 transition hover:border-white/30 hover:text-white">
+              {item}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p class="mono mb-4 text-white/42">Services</p>
+        <ul class="space-y-3 text-sm text-white/58">
+          <li><a class="link-sweep hover:text-white" href="#services">Strategy</a></li>
+          <li><a class="link-sweep hover:text-white" href="#services">Brand & Design</a></li>
+          <li><a class="link-sweep hover:text-white" href="#services">Web & Product</a></li>
+          <li><a class="link-sweep hover:text-white" href="#services">Growth Marketing</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="mono mb-4 text-white/42">Company</p>
+        <ul class="space-y-3 text-sm text-white/58">
+          <li><a class="link-sweep hover:text-white" href="#about">About Us</a></li>
+          <li><a class="link-sweep hover:text-white" href="#process">Careers</a></li>
+          <li><a class="link-sweep hover:text-white" href="#insights">Insights</a></li>
+          <li><a class="link-sweep hover:text-white" href={`mailto:${site.email}`}>Contact</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="mono mb-4 text-white/42">Resources</p>
+        <ul class="space-y-3 text-sm text-white/58">
+          <li><a class="link-sweep hover:text-white" href="#work">Case Studies</a></li>
+          <li><a class="link-sweep hover:text-white" href="#insights">Blog</a></li>
+          <li><a class="link-sweep hover:text-white" href="#process">Guides</a></li>
+          <li><a class="link-sweep hover:text-white" href="#insights">Newsletter</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="mono mb-4 text-white/42">Stay inspired</p>
+        <p class="text-sm leading-6 text-white/55">Get ideas, trends, and proven strategies in your inbox.</p>
+        <form class="mt-5 flex overflow-hidden rounded-xl border border-white/12 bg-white/[0.03]">
+          <input type="email" placeholder="Enter your email" class="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-white/35" />
+          <button class="grid w-12 place-items-center bg-[--color-acc] text-sm font-bold text-white" type="submit" aria-label="Subscribe">→</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="mt-8 flex flex-col gap-3 border-t border-white/10 pt-5 text-xs text-white/36 sm:flex-row sm:items-center sm:justify-between">
+      <p>Â© {year} {site.name}. All rights reserved.</p>
+      <div class="flex gap-8">
+        <a class="hover:text-white/70" href="#">Privacy Policy</a>
+        <a class="hover:text-white/70" href="#">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+</footer>

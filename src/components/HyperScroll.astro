@@ -1,0 +1,247 @@
+---
+/*
+ * Hyper-scroll: a pinned 3D fly-through section. Cards + big words + a starfield
+ * rush past the camera as you scroll (scroll-progress driven, sticky viewport —
+ * does not hijack global page scroll). Tuned to the brand palette.
+ */
+const cards = [
+  { id: "AGT-01", title: "AI Agents", a: "VOICE + CHAT", b: "QUALIFY & TRIGGER" },
+  { id: "AUT-02", title: "Automation Engines", a: "DATA MOVES", b: "ZERO TOUCH" },
+  { id: "APP-03", title: "Custom Apps", a: "PORTALS + SAAS", b: "YOUR LOGIC" },
+  { id: "PIP-04", title: "Data Pipelines", a: "SOURCED", b: "REAL-TIME" },
+  { id: "DSH-05", title: "Dashboards", a: "LIVE METRICS", b: "DECISIONS" },
+  { id: "INT-06", title: "Integrations", a: "200+ TOOLS", b: "CRM-WIRED" },
+];
+const words = ["AI", "AGENTS", "AUTOMATE", "SYSTEMS", "DATA", "SHIP", "SCALE"];
+
+// Interleave: a centered word every 4th slot, cards in between (so words never stack).
+const seq = [];
+let ci = 0, wi = 0;
+for (let i = 0; i < 22; i++) {
+  if (i % 4 === 0) { seq.push({ kind: "text", text: words[wi % words.length] }); wi++; }
+  else { seq.push({ kind: "card", ...cards[ci % cards.length], n: ci }); ci++; }
+}
+---
+
+<section class="hs-section" data-hs-section>
+  <div class="hs-sticky">
+    <div class="hs-scanlines"></div>
+    <div class="hs-vignette"></div>
+
+    <div class="hs-hud" aria-hidden="true">
+      <div class="hs-hud-row">
+        <span>SYS.READY</span>
+        <div class="hs-line"></div>
+        <span>INSERTAI // ENGINE</span>
+      </div>
+      <div class="hs-hud-row">
+        <span>STATUS.NOMINAL</span>
+        <div class="hs-line"></div>
+        <span>DEPTH <strong data-hs-depth>0000</strong></span>
+      </div>
+    </div>
+
+    <div class="hs-intro" data-hs-intro>
+      <p class="mono">(05) — Hyper drive</p>
+      <h2 class="display">Engineered for <span class="accent">velocity.</span></h2>
+      <p class="hs-scrollcue mono">Scroll to accelerate ↓</p>
+    </div>
+
+    <div class="hs-viewport" data-hs-viewport>
+      <div class="hs-world" data-hs-world>
+        {seq.map((it) => it.kind === "text" ? (
+          <div class="hs-item" data-kind="text"><div class="hs-big-text">{it.text}</div></div>
+        ) : (
+          <div class="hs-item" data-kind="card">
+            <div class="hs-card">
+              <div class="hs-card-head">
+                <span class="hs-card-id">{it.id}</span>
+                <span class="hs-dot"></span>
+              </div>
+              <h3>{it.title}</h3>
+              <div class="hs-card-foot"><span>{it.a}</span><span>{it.b}</span></div>
+              <span class="hs-card-num">{String(it.n + 1).padStart(2, "0")}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  .hs-section { position: relative; height: 300vh; }
+  .hs-sticky {
+    position: sticky; top: 0; height: 100vh; overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(60, 70, 200, 0.16), transparent 60%),
+      linear-gradient(180deg, #06070f, #04050c 60%, #06070f);
+  }
+  .hs-scanlines {
+    position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    background: linear-gradient(rgba(255,255,255,0) 50%, rgba(0,0,0,0.22) 50%);
+    background-size: 100% 4px; opacity: 0.5;
+  }
+  .hs-vignette { position: absolute; inset: 0; z-index: 7; pointer-events: none; background: radial-gradient(circle, transparent 42%, #04050c 120%); }
+
+  .hs-hud {
+    position: absolute; inset: 1.6rem; z-index: 8; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.42);
+  }
+  .hs-hud-row { display: flex; align-items: center; justify-content: space-between; }
+  .hs-hud strong { color: #22d3ee; }
+  .hs-line { flex: 1; height: 1px; background: rgba(255,255,255,0.16); margin: 0 1rem; position: relative; }
+  .hs-line::after { content: ""; position: absolute; right: 0; top: -2px; width: 5px; height: 5px; background: #8b5cf6; }
+
+  .hs-intro {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    z-index: 8; text-align: center; pointer-events: none; transition: opacity 0.3s ease; padding: 0 1.5rem;
+  }
+  .hs-intro .mono { font-family: var(--font-mono, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem; color: #22d3ee; }
+  .hs-intro .display { font-family: var(--font-display, sans-serif); font-weight: 700; font-size: clamp(2rem, 6vw, 4.5rem); color: #eef1ff; margin: 0.6rem 0 1.4rem; letter-spacing: -0.02em; }
+  .hs-intro .accent { background: linear-gradient(115deg, #66dcff, #8b5cf6 60%, #b06bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hs-scrollcue { color: rgba(255,255,255,0.5); animation: hs-bob 1.8s ease-in-out infinite; }
+  @keyframes hs-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+
+  .hs-viewport { position: absolute; inset: 0; perspective: 1000px; overflow: hidden; z-index: 1; }
+  .hs-world { position: absolute; top: 50%; left: 50%; transform-style: preserve-3d; will-change: transform; }
+  .hs-item { position: absolute; left: 0; top: 0; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; opacity: 0; will-change: transform, opacity; }
+
+  .hs-card {
+    width: 300px; height: 420px; padding: 1.8rem; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; position: relative;
+    background: linear-gradient(160deg, rgba(20,26,52,0.72), rgba(8,10,22,0.72));
+    border: 1px solid rgba(140,150,255,0.22);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 30px 70px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .hs-card-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(140,150,255,0.18); padding-bottom: 1rem; }
+  .hs-card-id { font-family: var(--font-mono, monospace); font-size: 0.72rem; letter-spacing: 0.1em; color: #22d3ee; }
+  .hs-dot { width: 9px; height: 9px; border-radius: 50%; background: #8b5cf6; box-shadow: 0 0 12px #8b5cf6; }
+  .hs-card h3 { font-family: var(--font-display, sans-serif); font-weight: 700; font-size: 2.1rem; line-height: 1; margin: auto 0; color: #fff; text-transform: uppercase; }
+  .hs-card-foot { display: flex; justify-content: space-between; font-family: var(--font-mono, monospace); font-size: 0.62rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.42); }
+  .hs-card-num { position: absolute; bottom: 1.4rem; right: 1.6rem; font-family: var(--font-display, sans-serif); font-weight: 800; font-size: 3.4rem; color: rgba(140,150,255,0.1); }
+
+  .hs-big-text {
+    font-family: var(--font-display, sans-serif); font-weight: 800; font-size: 13vw; line-height: 0.9;
+    color: transparent; -webkit-text-stroke: 2px rgba(140,150,255,0.22); text-transform: uppercase;
+    white-space: nowrap; transform: translate(-50%, -50%); letter-spacing: -0.04em;
+  }
+  .hs-star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #cdd6ff; transform: translate(-50%, -50%); opacity: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hs-section { height: 120vh; }
+    .hs-scrollcue { animation: none; }
+  }
+</style>
+
+<script>
+  const sections = document.querySelectorAll("[data-hs-section]");
+  sections.forEach((section) => {
+    const viewport = section.querySelector("[data-hs-viewport]");
+    const world = section.querySelector("[data-hs-world]");
+    const intro = section.querySelector("[data-hs-intro]");
+    const depthOut = section.querySelector("[data-hs-depth]");
+    if (!viewport || !world) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const Z_GAP = 920;
+    const items = [];
+
+    const authored = Array.from(world.children);
+    authored.forEach((el, i) => {
+      const kind = el.getAttribute("data-kind");
+      let x = 0, y = 0, rot = 0;
+      if (kind === "card") {
+        const angle = i * 0.95;
+        x = Math.cos(angle) * (window.innerWidth * 0.24);
+        y = Math.sin(angle) * (window.innerHeight * 0.22);
+        rot = (Math.random() - 0.5) * 14;
+      }
+      items.push({ el, kind, x, y, rot, baseZ: -(i + 1) * Z_GAP });
+    });
+    const travel = (authored.length + 2) * Z_GAP;
+
+    for (let i = 0; i < 120; i++) {
+      const el = document.createElement("div");
+      el.className = "hs-star";
+      world.appendChild(el);
+      items.push({
+        el, kind: "star", x: (Math.random() - 0.5) * 2600, y: (Math.random() - 0.5) * 2600,
+        baseZ: -Math.random() * travel,
+      });
+    }
+
+    const state = { target: 0, prog: 0, vel: 0, mx: 0, my: 0 };
+    section.addEventListener("pointermove", (e) => {
+      state.mx = (e.clientX / window.innerWidth - 0.5) * 2;
+      state.my = ((e.clientY - section.getBoundingClientRect().top) / window.innerHeight - 0.5) * 2;
+    });
+
+    const computeProgress = () => {
+      const rect = section.getBoundingClientRect();
+      const total = section.offsetHeight - window.innerHeight;
+      return total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
+    };
+
+    let visible = true;
+    new IntersectionObserver((es) => es.forEach((e) => (visible = e.isIntersecting)), { rootMargin: "120px" }).observe(section);
+
+    // tighter fade windows so each item clearly hands off to the next
+    const opacityFor = (z) => {
+      if (z < -2350 || z > 360) return 0;
+      if (z < -1350) return (z + 2350) / 1000;   // fade in
+      if (z > -250) return 1 - (z + 250) / 610;   // fade out
+      return 1;                                    // full between -1350 and -250
+    };
+
+    let raf = 0;
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      if (!visible) return;
+
+      state.target = computeProgress();
+      const prev = state.prog;
+      state.prog += (state.target - state.prog) * (reduce ? 1 : 0.12);
+      state.vel += ((state.prog - prev) * 620 - state.vel) * 0.16;
+      const v = state.vel;
+
+      if (depthOut) depthOut.textContent = String(Math.round(state.prog * travel)).padStart(4, "0");
+      if (intro) intro.style.opacity = String(Math.max(0, 1 - state.prog * 8));
+
+      const camZ = state.prog * travel;
+      viewport.style.perspective = `${1000 - Math.min(Math.abs(v) * 7, 520)}px`;
+      world.style.transform = `rotateX(${state.my * 4 - v * 0.4}deg) rotateY(${state.mx * 5}deg)`;
+
+      for (const it of items) {
+        let z = it.baseZ + camZ;
+        let a;
+        if (it.kind === "star") {
+          z = ((z % travel) + travel) % travel;
+          if (z > 360) z -= travel;
+          a = z < -2600 ? 0 : z > 300 ? 0 : 0.75;
+        } else {
+          a = opacityFor(z);
+        }
+        it.el.style.opacity = String(a);
+        if (a <= 0) continue;
+
+        let t = `translate3d(${it.x}px, ${it.y}px, ${z}px)`;
+        if (it.kind === "star") {
+          t += ` scaleZ(${Math.max(1, Math.min(1 + Math.abs(v) * 0.08, 8))})`;
+        } else if (it.kind === "text") {
+          const o = Math.max(-13, Math.min(13, v * 0.9));
+          it.el.style.textShadow = Math.abs(v) > 0.8 ? `${o}px 0 #b06bff, ${-o}px 0 #22d3ee` : "none";
+        } else {
+          t += ` rotateZ(${it.rot}deg)`;
+        }
+        it.el.style.transform = t;
+      }
+    };
+    loop();
+
+    document.addEventListener("astro:before-swap", () => cancelAnimationFrame(raf), { once: true });
+  });
+</script>

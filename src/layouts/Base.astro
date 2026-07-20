@@ -1,0 +1,91 @@
+---
+import "../styles/global.css";
+import { site, seo } from "../data/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = seo.title, description = seo.description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url).href;
+const ogImage = new URL(seo.ogImage, Astro.site ?? site.url).href;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  name: site.name,
+  url: site.url,
+  description: seo.description,
+  email: site.email,
+  telephone: site.voiceAgentPhone,
+  areaServed: "Worldwide",
+  serviceType: [
+    "AI Automation",
+    "AI Voice Agents",
+    "QuickBooks Integration",
+    "HubSpot Integration",
+    "Business Process Automation",
+  ],
+  sameAs: [site.social.linkedin, site.social.x],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="keywords" content={seo.keywords} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#02040a" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Mark JS as available before first paint, so scroll-reveal only hides
+         content for JS users (no-JS visitors & crawlers see everything). -->
+    <script is:inline>document.documentElement.classList.add("js");</script>
+
+    <!-- Preconnect kept minimal: fonts are self-hosted, so no external font CDN. -->
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body class="grain">
+    <slot />
+
+    <!-- Tiny progressive-enhancement: reveal-on-scroll. Zero deps, ~250 bytes. -->
+    <script>
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add("in-view");
+              io.unobserve(e.target);
+            }
+          }
+        },
+        { threshold: 0.12 }
+      );
+      document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    </script>
+  </body>
+</html>

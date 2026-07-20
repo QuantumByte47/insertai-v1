@@ -1,0 +1,133 @@
+---
+// ⚠️ PLACEHOLDER reviews — swap for real client quotes when you have them.
+const reviews = [
+  {
+    quote: "They scoped the architecture better than our own team could. What they shipped was clean, documented, and genuinely scalable.",
+    name: "Daniel Reyes", role: "CTO, NorthPeak SaaS", avatar: null,
+  },
+  {
+    quote: "Their voice agent books appointments while we sleep. We stopped missing after-hours calls completely — it paid for itself in the first month.",
+    name: "Sarah Mitchell", role: "Owner, Brightside Dental", avatar: "/avatar-1.webp",
+  },
+  {
+    quote: "We were drowning in manual QuickBooks and HubSpot entry. InsertAI automated all of it. My team got ~20 hours a week back.",
+    name: "James Carter", role: "Operations Director, Carter Logistics", avatar: "/avatar-2.webp",
+  },
+  {
+    quote: "Every lead now gets a response in seconds, not hours. Our close rate jumped and we didn't add a single hire.",
+    name: "Priya Nair", role: "Founder, LeadForge Marketing", avatar: "/avatar-3.webp",
+  },
+  {
+    quote: "Our internal dashboards finally give us live visibility. Decisions that used to take days now take minutes.",
+    name: "Amara Okafor", role: "Head of Ops, Vantage Group", avatar: null,
+  },
+];
+
+const initials = (name) => name.split(" ").map((p) => p[0]).slice(0, 2).join("");
+---
+
+<div class="reviews glass flex flex-col rounded-2xl p-8" data-reviews>
+  <div class="reviews-viewport">
+    <div class="reviews-track" data-track>
+      {reviews.map((r) => (
+        <figure class="reviews-slide">
+          <div class="text-5xl font-bold leading-none text-[--color-acc]">"</div>
+          <blockquote class="mt-2 text-lg leading-7 text-white">{r.quote}</blockquote>
+          <figcaption class="mt-7 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              {r.avatar ? (
+                <img src={r.avatar} alt="" width="48" height="48" loading="lazy" decoding="async" class="h-12 w-12 rounded-full object-cover" />
+              ) : (
+                <span class="grid h-12 w-12 place-items-center rounded-full text-sm font-bold text-white" style="background:linear-gradient(135deg,#725eff,#4e73ff 55%,#1ed6ff)">{initials(r.name)}</span>
+              )}
+              <div>
+                <p class="text-sm font-semibold text-white">{r.name}</p>
+                <p class="text-xs text-white/55">{r.role}</p>
+              </div>
+            </div>
+            <p class="text-sm tracking-[0.22em]" style="color:#ffc24a">★★★★★</p>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  </div>
+
+  <!-- controls -->
+  <div class="mt-6 flex items-center justify-between border-t border-white/8 pt-5">
+    <div class="flex gap-2" role="tablist" aria-label="Select review">
+      {reviews.map((_, i) => (
+        <button type="button" class="reviews-dot" data-dot data-active={i === 0 ? "true" : "false"} aria-label={`Review ${i + 1}`}></button>
+      ))}
+    </div>
+    <div class="flex gap-2">
+      <button type="button" class="reviews-arrow" data-prev aria-label="Previous review">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button type="button" class="reviews-arrow" data-next aria-label="Next review">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* grid/flex items default to min-width:auto and refuse to shrink below their
+     content (the stacked slides) — force them to shrink to the column width. */
+  .reviews { min-width: 0; }
+  .reviews-viewport { overflow: hidden; flex: 1; width: 100%; min-width: 0; }
+  .reviews-track { display: flex; transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .reviews-slide { flex: 0 0 100%; width: 100%; min-width: 0; display: flex; flex-direction: column; min-height: 230px; }
+
+  .reviews-dot {
+    width: 22px; height: 4px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16); border: 0; cursor: pointer; padding: 0;
+    transition: background 0.3s ease, width 0.3s ease;
+  }
+  .reviews-dot[data-active="true"] { width: 34px; background: linear-gradient(90deg, var(--color-acc), var(--color-acc-2)); }
+
+  .reviews-arrow {
+    display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px;
+    border: 1px solid var(--color-line-strong); background: rgba(255, 255, 255, 0.03);
+    color: var(--color-fg); cursor: pointer;
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+  }
+  .reviews-arrow:hover { border-color: rgba(46, 214, 255, 0.6); background: rgba(46, 214, 255, 0.08); transform: translateY(-1px); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reviews-track { transition: none; }
+  }
+</style>
+
+<script>
+  function initReviews() {
+    document.querySelectorAll("[data-reviews]").forEach((root) => {
+      const el = root as HTMLElement;
+      if (el.dataset.init) return;
+      el.dataset.init = "1";
+      const track = el.querySelector("[data-track]") as HTMLElement;
+      const slides = Array.from(track.children);
+      const dots = Array.from(el.querySelectorAll("[data-dot]"));
+      let i = 0;
+      let timer: number | undefined;
+
+      const go = (n: number) => {
+        i = (n + slides.length) % slides.length;
+        track.style.transform = `translateX(-${i * 100}%)`;
+        dots.forEach((d, k) => d.setAttribute("data-active", String(k === i)));
+      };
+      const start = () => { timer = window.setInterval(() => go(i + 1), 6000); };
+      const restart = () => { window.clearInterval(timer); start(); };
+
+      (el.querySelector("[data-prev]") as HTMLElement).addEventListener("click", () => { go(i - 1); restart(); });
+      (el.querySelector("[data-next]") as HTMLElement).addEventListener("click", () => { go(i + 1); restart(); });
+      dots.forEach((d, k) => d.addEventListener("click", () => { go(k); restart(); }));
+      el.addEventListener("mouseenter", () => window.clearInterval(timer));
+      el.addEventListener("mouseleave", start);
+
+      go(0);
+      start();
+    });
+  }
+  initReviews();
+  document.addEventListener("astro:after-swap", initReviews);
+</script>

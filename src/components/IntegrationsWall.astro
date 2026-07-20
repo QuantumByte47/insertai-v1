@@ -1,0 +1,219 @@
+---
+import fs from "node:fs";
+import { logoGroups } from "../data/logos";
+
+const listSlugs = (dir) =>
+  new Set(
+    fs.existsSync(dir)
+      ? fs.readdirSync(dir).filter((f) => f.endsWith(".svg")).map((f) => f.slice(0, -4))
+      : [],
+  );
+const colorSet = listSlugs("public/assets/logos-color");
+const colorFor = (slug) => (colorSet.has(slug) ? `/assets/logos-color/${slug}.svg` : undefined);
+
+// Layout lives in a 900x582 viewBox that shares the hub container's aspect
+// ratio (uniform scale). Cards are placed by %, and each wire is an orthogonal
+// path with rounded bends that docks at the centre of the card's facing border.
+const positions = [
+  { left: 55.6, top: 13.4 }, // 0 top
+  { left: 86.7, top: 36.1 }, // 1 right
+  { left: 13.3, top: 36.1 }, // 2 left
+  { left: 86.7, top: 80.8 }, // 3 bottom-right
+  { left: 13.3, top: 80.8 }, // 4 bottom-left
+];
+const wires = [
+  [[450, 255], [450, 180], [500, 180], [500, 130]], // top    (hub top -> card bottom)
+  [[554, 291], [630, 291], [630, 210], [700, 210]], // right  (hub right -> card left)
+  [[346, 291], [270, 291], [270, 210], [200, 210]], // left   (hub left -> card right)
+  [[475, 327], [475, 470], [700, 470]],             // bottom-right (hub bottom -> card left)
+  [[425, 327], [425, 470], [200, 470]],             // bottom-left  (hub bottom -> card right)
+];
+
+// Build an SVG path of orthogonal segments with rounded corners.
+function roundedPath(pts, r) {
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+    const d1 = dist(p0, p1), d2 = dist(p1, p2);
+    const rr = Math.min(r, d1 / 2, d2 / 2);
+    const ax = p1[0] + ((p0[0] - p1[0]) / d1) * rr;
+    const ay = p1[1] + ((p0[1] - p1[1]) / d1) * rr;
+    const bx = p1[0] + ((p2[0] - p1[0]) / d2) * rr;
+    const by = p1[1] + ((p2[1] - p1[1]) / d2) * rr;
+    d += ` L${ax.toFixed(1)} ${ay.toFixed(1)} Q${p1[0]} ${p1[1]} ${bx.toFixed(1)} ${by.toFixed(1)}`;
+  }
+  const l = pts[pts.length - 1];
+  d += ` L${l[0]} ${l[1]}`;
+  return d;
+}
+const paths = wires.map((w) => roundedPath(w, 22));
+
+const groupNodes = logoGroups.map((g, i) => ({
+  label: g.label,
+  icons: g.items.map((it) => colorFor(it.slug)).filter(Boolean).slice(0, 3),
+  more: Math.max(0, g.items.length - 3),
+  ...positions[i],
+}));
+---
+
+<section id="integrations" class="py-5">
+  <div class="site-shell">
+    <div class="mx-auto max-w-2xl text-center">
+      <p class="mono text-[--color-acc]">Integrations</p>
+      <h2 class="display mt-4 text-[clamp(2rem,4vw,3.2rem)]">Plugs into the tools you <span class="accent">already use.</span></h2>
+      <p class="mx-auto mt-4 max-w-xl text-base leading-7 text-[--color-fg-muted]">
+        Connect with 100+ popular business tools and platforms — data flows automatically across everything you run.
+      </p>
+    </div>
+
+    <div class="int-hub" aria-hidden="true">
+      <svg class="int-hub-wires" viewBox="0 0 900 582" fill="none">
+        <defs>
+          <linearGradient id="hubwire" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#1ed6ff" />
+            <stop offset="1" stop-color="#7b5cff" />
+          </linearGradient>
+        </defs>
+        <!-- only the moving comet is drawn; the connecting track stays invisible -->
+        <g class="int-hub-flow" stroke="url(#hubwire)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="42 200">
+          {paths.map((d, i) => <path d={d} pathLength="100" style={`animation-delay:${i < 2 ? 0 : 7}s`} />)}
+        </g>
+      </svg>
+
+      <div class="int-hub-core">
+        <img src="/insertai-logo.webp" alt="InsertAI" width="1448" height="350" />
+      </div>
+
+      {groupNodes.map((n, i) => (
+        <div class="grp-node" style={`left:${n.left}%;top:${n.top}%;animation-delay:${i * 0.4}s`}>
+          <span class="grp-glow" style={`animation-delay:${i < 2 ? 0 : 7}s`}></span>
+          <div class="grp-icons">
+            {n.icons.map((u) => <img src={u} alt="" loading="lazy" decoding="async" />)}
+            {n.more > 0 && <span class="grp-more">+{n.more}</span>}
+          </div>
+          <span class="grp-label">{n.label}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .int-hub {
+    position: relative;
+    width: 100%;
+    max-width: 780px;
+    aspect-ratio: 900 / 582;
+    margin: 3rem auto 0;
+  }
+  .int-hub-wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+  /* one comet segment per wire, following the bends smoothly, hub -> card.
+     head reaches the card at 54% of the cycle, tail at 77%. */
+  .int-hub-flow path {
+    animation: hub-flow 14s linear infinite;
+  }
+  /* comet crosses during the first 45% of the cycle, then parks off-path
+     (invisible) so only one wave of comets is travelling at a time. */
+  @keyframes hub-flow {
+    0% { stroke-dashoffset: 42; }
+    45%, 100% { stroke-dashoffset: -142; }
+  }
+
+  /* central InsertAI pill (fully opaque) */
+  .int-hub-core {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    height: 62px;
+    padding: 0 26px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #1c2650, #0b0f1e);
+    border: 1px solid rgba(46, 214, 255, 0.35);
+    box-shadow: 0 0 0 7px rgba(103, 92, 255, 0.1), 0 0 34px rgba(103, 92, 255, 0.5);
+    animation: hub-pulse 3s ease-in-out infinite;
+    z-index: 2;
+  }
+  .int-hub-core img { height: 26px; width: auto; }
+  @keyframes hub-pulse {
+    0%, 100% { box-shadow: 0 0 0 7px rgba(103, 92, 255, 0.1), 0 0 30px rgba(103, 92, 255, 0.42); }
+    50% { box-shadow: 0 0 0 15px rgba(103, 92, 255, 0), 0 0 50px rgba(46, 214, 255, 0.58); }
+  }
+
+  /* category cluster nodes */
+  .grp-node {
+    position: absolute;
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    width: 138px;
+    padding: 0.85rem 0.7rem;
+    border-radius: 16px;
+    border: 1px solid var(--color-line-strong);
+    background: linear-gradient(150deg, rgba(19, 25, 50, 0.9), rgba(8, 11, 24, 0.94));
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    animation: hub-float 4.5s ease-in-out infinite;
+    z-index: 3;
+  }
+
+  /* even colour wash filling the whole card; plain opacity fade (no circle),
+     synced to the comet: in as its head enters, out as its tail enters. */
+  .grp-glow {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(46, 214, 255, 0.32), rgba(110, 92, 255, 0.32));
+    opacity: 0;
+    animation: grp-ripple 14s linear infinite;
+  }
+  @keyframes grp-ripple {
+    0%, 22% { opacity: 0; }
+    28% { opacity: 1; }
+    35% { opacity: 1; }
+    45% { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  .grp-icons { position: relative; z-index: 2; display: flex; align-items: center; gap: 0.55rem; }
+  .grp-icons img { height: 26px; width: auto; max-width: 28px; object-fit: contain; }
+  .grp-more { font-size: 11px; font-weight: 700; color: var(--color-acc-2); }
+  .grp-label {
+    position: relative;
+    z-index: 2;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  @keyframes hub-float {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50% { transform: translate(-50%, -54%); }
+  }
+
+  @media (max-width: 640px) {
+    .int-hub { max-width: 420px; }
+    .grp-node { width: 108px; padding: 0.6rem 0.5rem; gap: 0.4rem; border-radius: 13px; }
+    .grp-icons { gap: 0.4rem; }
+    .grp-icons img { height: 20px; max-width: 22px; }
+    .grp-more { font-size: 10px; }
+    .grp-label { font-size: 9.5px; }
+    .int-hub-core { height: 50px; padding: 0 16px; }
+    .int-hub-core img { height: 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .int-hub-flow path, .int-hub-core, .grp-node, .grp-glow { animation: none; }
+    .grp-glow { opacity: 0; }
+  }
+</style>

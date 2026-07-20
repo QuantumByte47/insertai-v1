@@ -1,0 +1,47 @@
+---
+import { site } from "../data/site";
+---
+
+<section id="vision" class="py-5">
+  <div class="site-shell">
+    <div class="grid items-stretch gap-5 lg:grid-cols-[1.08fr_0.92fr] lg:gap-8">
+      <!-- statement -->
+      <div class="reveal flex flex-col justify-center px-1 py-6 lg:order-2 lg:px-5">
+        <p class="mono text-[--color-acc]">Engineered intelligence</p>
+        <h2 class="display mt-4 text-[clamp(2rem,4vw,3.35rem)]">
+          Where human ambition meets <span class="accent">machine intelligence</span>.
+        </h2>
+        <p class="mt-6 max-w-xl text-base leading-7 text-[--color-fg-muted]">
+          Every system we ship fuses deep engineering with applied AI — built to think, adapt and
+          scale alongside your business. Technology for the frontier, not the status quo.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a href={site.bookingUrl} class="btn-primary px-6 py-3.5">Start building <span aria-hidden="true">→</span></a>
+          <a href="#work" class="btn-ghost px-6 py-3.5">See our work</a>
+        </div>
+      </div>
+
+      <!-- full-image card -->
+      <div class="reveal relative lg:order-1">
+        <!-- ambient glow bleeding behind the card -->
+        <div class="pointer-events-none absolute -inset-6 -z-10 bg-[radial-gradient(circle_at_62%_38%,rgba(46,214,255,.24),transparent_62%),radial-gradient(circle_at_36%_74%,rgba(103,92,255,.22),transparent_60%)] blur-2xl"></div>
+
+        <div class="relative h-full min-h-[340px] overflow-hidden rounded-[26px] border border-white/12 shadow-2xl shadow-black/55 sm:min-h-[420px] lg:min-h-[520px]">
+          <img
+            src="/assets/generated/astronaut.webp"
+            alt="Cybernetic astronaut gazing into deep space — human ambition meets machine intelligence"
+            width="1254"
+            height="1254"
+            loading="lazy"
+            decoding="async"
+            class="absolute inset-0 h-full w-full object-cover object-center"
+          />
+          <!-- bottom depth gradient -->
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/45 via-black/10 to-transparent"></div>
+          <!-- inner sheen ring -->
+          <div class="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-inset ring-white/10"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
