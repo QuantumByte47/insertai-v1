@@ -1,6 +1,6 @@
 ---
 /*
- * 3D brand logo — glossy blue→violet "data funnel converging into a > bracket".
+ * 3D brand logo - glossy blue→violet "data funnel converging into a > bracket".
  * Three.js, transparent canvas (hero gradient shows through), MSAA anti-aliasing.
  * The original CrystalScene.astro is preserved (unused) and can be swapped back.
  */
@@ -179,13 +179,13 @@
     // ---- "AI" letters in the centre ----
     const lw = 0.12;
     const Ax = -0.46;
-    logo.add(bar([Ax, 0.5], [Ax - 0.32, -0.5], lw, bodyMat));     // A — left leg
-    logo.add(bar([Ax, 0.5], [Ax + 0.32, -0.5], lw, bodyMat));     // A — right leg
-    logo.add(bar([Ax - 0.16, -0.04], [Ax + 0.16, -0.04], lw, bodyMat)); // A — crossbar
+    logo.add(bar([Ax, 0.5], [Ax - 0.32, -0.5], lw, bodyMat));     // A - left leg
+    logo.add(bar([Ax, 0.5], [Ax + 0.32, -0.5], lw, bodyMat));     // A - right leg
+    logo.add(bar([Ax - 0.16, -0.04], [Ax + 0.16, -0.04], lw, bodyMat)); // A - crossbar
     const Ix = 0.2;
-    logo.add(bar([Ix, 0.5], [Ix, -0.5], lw, bodyMat));            // I — stem
-    logo.add(bar([Ix - 0.15, 0.5], [Ix + 0.15, 0.5], lw, bodyMat));   // I — top
-    logo.add(bar([Ix - 0.15, -0.5], [Ix + 0.15, -0.5], lw, bodyMat)); // I — bottom
+    logo.add(bar([Ix, 0.5], [Ix, -0.5], lw, bodyMat));            // I - stem
+    logo.add(bar([Ix - 0.15, 0.5], [Ix + 0.15, 0.5], lw, bodyMat));   // I - top
+    logo.add(bar([Ix - 0.15, -0.5], [Ix + 0.15, -0.5], lw, bodyMat)); // I - bottom
 
     // ---- circuit traces exiting the right opening, each ending in a ring terminal ----
     const traces = [

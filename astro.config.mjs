@@ -9,6 +9,7 @@ const SITE = 'https://agency.insertai.com';
 export default defineConfig({
   site: SITE,
   integrations: [sitemap()],
+  devToolbar: { enabled: false },
   vite: {
     plugins: [tailwindcss()],
   },

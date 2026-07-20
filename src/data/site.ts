@@ -11,12 +11,12 @@ export const site = {
   domain: "agency.insertai.com",
   url: "https://agency.insertai.com",
 
-  // ⚠️ PLACEHOLDER — your real booking link (Calendly / Cal.com)
+  // ⚠️ PLACEHOLDER - your real booking link (Calendly / Cal.com)
   bookingUrl: "https://calendly.com/insertai/strategy-call",
-  // ⚠️ PLACEHOLDER — phone number visitors can call your voice agent on
+  // ⚠️ PLACEHOLDER - phone number visitors can call your voice agent on
   voiceAgentPhone: "+1 (555) 010-2025",
   voiceAgentPhoneHref: "tel:+15550102025",
-  // ⚠️ PLACEHOLDER — contact email
+  // ⚠️ PLACEHOLDER - contact email
   email: "hello@insertai.com",
 
   social: {
@@ -27,9 +27,9 @@ export const site = {
 };
 
 export const seo = {
-  title: "InsertAI — Custom AI, Automation & Software Engineering",
+  title: "InsertAI - Custom AI, Automation & Software Engineering",
   description:
-    "The last technical partner your business will ever need. We design and engineer AI agents, custom software, SaaS platforms, voice systems and integrations — 135+ implementations across 20+ industries.",
+    "The last technical partner your business will ever need. We design and engineer AI agents, custom software, SaaS platforms, voice systems and integrations - 135+ implementations across 20+ industries.",
   ogImage: "/og.png",
   keywords:
     "AI agents, AI voice agents, custom software development, SaaS development, business process automation, AI integrations, RAG systems, software engineering",

@@ -51,6 +51,8 @@ body::before {
     linear-gradient(180deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
   background-size: 88px 88px;
   mask-image: radial-gradient(circle at 50% 0%, #000, transparent 72%);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 ::selection {
@@ -187,16 +189,78 @@ body::before {
   opacity: 0.028;
   mix-blend-mode: screen;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .asset-tint {
   filter: saturate(1.35) hue-rotate(208deg) brightness(0.86) contrast(1.12);
 }
 
+.hero-meter {
+  filter:
+    drop-shadow(0 0 4px rgba(168, 85, 247, 0.7))
+    drop-shadow(0 0 10px rgba(168, 85, 247, 0.45))
+    drop-shadow(0 0 22px rgba(34, 211, 238, 0.35));
+  animation: meter-neon 2.8s ease-in-out infinite;
+}
+@keyframes meter-neon {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(168,85,247,0.7)) drop-shadow(0 0 10px rgba(168,85,247,0.45)) drop-shadow(0 0 22px rgba(34,211,238,0.35)); }
+  50% { filter: drop-shadow(0 0 6px rgba(168,85,247,0.85)) drop-shadow(0 0 14px rgba(168,85,247,0.55)) drop-shadow(0 0 28px rgba(34,211,238,0.5)); }
+}
+
+.scroll-cue {
+  animation: cue-bob 2s ease-in-out infinite;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.scroll-cue-line {
+  animation: cue-line-pulse 2s ease-in-out infinite;
+  transform-origin: top center;
+}
+@keyframes cue-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+@keyframes cue-line-pulse {
+  0%, 100% { scaleY: 1; opacity: 0.5; }
+  50% { scaleY: 1.2; opacity: 1; }
+}
+.scroll-cue-exit {
+  animation: cue-vanish 0.5s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.scroll-cue-exit .scroll-cue-line {
+  animation: cue-line-shoot 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@keyframes cue-vanish {
+  0% { opacity: 1; transform: translateY(0); }
+  60% { opacity: 1; transform: translateY(18px); }
+  100% { opacity: 0; transform: translateY(40px); }
+}
+@keyframes cue-line-shoot {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(2.2); }
+  100% { transform: scaleY(0); }
+}
+.scroll-cue-enter {
+  animation: cue-appear 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.scroll-cue-enter .scroll-cue-line {
+  animation: cue-line-return 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes cue-appear {
+  0% { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes cue-line-return {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+
 .crystal-scene {
   position: relative;
   min-height: 460px;
   width: 100%;
+  contain: layout style;
 }
 
 .crystal-canvas {
@@ -204,6 +268,7 @@ body::before {
   inset: -9% -7%;
   width: 114%;
   height: 118%;
+  will-change: contents;
 }
 
 .crystal-sheen {

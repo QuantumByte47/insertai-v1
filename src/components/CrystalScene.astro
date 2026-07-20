@@ -7,64 +7,6 @@
   import * as THREE from "three";
   import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
-  const makeTexture = (variant) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext("2d");
-
-    const bg = ctx.createLinearGradient(0, 0, 1024, 1024);
-    if (variant === "ice") {
-      bg.addColorStop(0, "#f5ffff");
-      bg.addColorStop(0.28, "#82f3ff");
-      bg.addColorStop(0.58, "#a7b6ff");
-      bg.addColorStop(1, "#17205b");
-    } else {
-      bg.addColorStop(0, "#110822");
-      bg.addColorStop(0.24, "#2d22bd");
-      bg.addColorStop(0.56, "#744bff");
-      bg.addColorStop(0.78, "#160829");
-      bg.addColorStop(1, "#03030d");
-    }
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, 1024, 1024);
-
-    for (let i = 0; i < 26; i += 1) {
-      const x = Math.random() * 1024;
-      const y = Math.random() * 1024;
-      const r = 90 + Math.random() * 300;
-      const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
-      const color = variant === "ice" ? "125,245,255" : i % 5 === 0 ? "255,150,54" : "145,82,255";
-      glow.addColorStop(0, `rgba(${color},${0.22 + Math.random() * 0.22})`);
-      glow.addColorStop(0.45, `rgba(${color},0.06)`);
-      glow.addColorStop(1, `rgba(${color},0)`);
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, 1024, 1024);
-    }
-
-    ctx.globalCompositeOperation = "screen";
-    for (let i = 0; i < 34; i += 1) {
-      ctx.beginPath();
-      const sx = Math.random() * 1024;
-      const sy = Math.random() * 1024;
-      ctx.moveTo(sx, sy);
-      const segments = 2 + Math.floor(Math.random() * 3);
-      for (let j = 0; j < segments; j += 1) {
-        ctx.lineTo(sx + (Math.random() - 0.5) * 460, sy + (Math.random() - 0.5) * 460);
-      }
-      ctx.strokeStyle = variant === "ice" ? "rgba(240,255,255,.32)" : "rgba(180,220,255,.17)";
-      ctx.lineWidth = Math.random() * 1.8 + 0.4;
-      ctx.stroke();
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = 8;
-    return texture;
-  };
-
   const makeGlintTexture = () => {
     const canvas = document.createElement("canvas");
     canvas.width = 128;
@@ -187,14 +129,59 @@
       antialias: true,
       powerPreference: "high-performance",
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    /* ── Adaptive DPR with frame budget monitor ── */
+    let currentDpr = Math.max(window.devicePixelRatio, 2);
+    const MIN_DPR = 1.25;
+    const IDEAL_DPR = Math.max(window.devicePixelRatio, 2);
+    renderer.setPixelRatio(currentDpr);
+
+    // Frame time tracking for adaptive quality
+    const frameTimes = new Float32Array(30);
+    let frameIdx = 0;
+    let frameSamples = 0;
+    let lastTickTime = 0;
+
+    const recordFrame = (ms) => {
+      frameTimes[frameIdx] = ms;
+      frameIdx = (frameIdx + 1) % frameTimes.length;
+      if (frameSamples < frameTimes.length) frameSamples++;
+    };
+    const avgFrameTime = () => {
+      if (frameSamples === 0) return 0;
+      let sum = 0;
+      for (let i = 0; i < frameSamples; i++) sum += frameTimes[i];
+      return sum / frameSamples;
+    };
+    // Check every 60 frames whether to adjust quality
+    let adaptCheck = 0;
+    const adaptQuality = () => {
+      if (++adaptCheck < 60 || frameSamples < 20) return;
+      adaptCheck = 0;
+      const avg = avgFrameTime();
+      if (avg > 18 && currentDpr > MIN_DPR) {
+        // Frames too slow - reduce DPR
+        currentDpr = Math.max(MIN_DPR, currentDpr - 0.25);
+        renderer.setPixelRatio(currentDpr);
+        applySize();
+      } else if (avg < 12 && currentDpr < IDEAL_DPR) {
+        // Frames fast - restore DPR
+        currentDpr = Math.min(IDEAL_DPR, currentDpr + 0.25);
+        renderer.setPixelRatio(currentDpr);
+        applySize();
+      }
+    };
+
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.48;
 
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
     const pmrem = new THREE.PMREMGenerator(renderer);
     const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envMap;
+    pmrem.dispose();
 
     const group = new THREE.Group();
     group.scale.setScalar(0.82);
@@ -205,11 +192,14 @@
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.anisotropy = 8;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.generateMipmaps = true;
+      texture.anisotropy = maxAniso;
       return texture;
     };
-    const violetMap = prepareMap(textureLoader.load("/assets/generated/crystal-texture-violet.webp"));
-    const iceMap = prepareMap(textureLoader.load("/assets/generated/crystal-texture-ice.webp"));
+    const violetMap = textureLoader.load("/assets/generated/crystal-texture-violet.webp", prepareMap);
+    const iceMap = textureLoader.load("/assets/generated/crystal-texture-ice.webp", prepareMap);
     const glintTexture = makeGlintTexture();
     const crystalGeometry = makeShardGeometry("all");
     const iceGeometry = makeShardGeometry("ice");
@@ -292,14 +282,15 @@
     iceSide.scale.setScalar(1.012);
     group.add(iceSide);
 
+    /* core - downgraded from MeshPhysicalMaterial to MeshStandardMaterial.
+       At 56% scale, 28% opacity, the 0.12 transmission was invisible
+       behind 4 outer layers. This saves a shader compilation. */
     const core = new THREE.Mesh(
       coreGeometry,
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color: "#07031d",
         map: violetMap,
         roughness: 0.16,
-        transmission: 0.12,
-        thickness: 1.2,
         transparent: true,
         opacity: 0.28,
         envMapIntensity: 0.7,
@@ -416,18 +407,28 @@
     };
     root.addEventListener("pointermove", onPointerMove);
 
-    const resize = () => {
-      const rect = root.getBoundingClientRect();
-      const width = Math.max(1, rect.width);
-      const height = Math.max(1, rect.height);
+    /* ── Debounced resize ── */
+    let resizeTimer = 0;
+    const applySize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+    };
+    const resize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        renderer.setPixelRatio(currentDpr);
+        applySize();
+      }, 150);
     };
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
     const startedAt = performance.now();
+    let isVisible = true;
 
     const syncRotations = () => {
       iceSide.rotation.copy(crystal.rotation);
@@ -438,24 +439,47 @@
     };
 
     const tick = () => {
-      const t = (performance.now() - startedAt) / 1000;
+      raf = requestAnimationFrame(tick);
+      if (!isVisible) return;
+
+      const now = performance.now();
+      const t = (now - startedAt) / 1000;
+
       group.rotation.y = t * (reduceMotion ? 0.018 : 0.075) + pointer.x * 0.095;
       group.rotation.x = -0.06 + Math.sin(t * 0.38) * 0.03 - pointer.y * 0.07;
       crystal.rotation.z = 0.2 + Math.sin(t * 0.32) * 0.045;
       syncRotations();
       particleCloud.rotation.y = t * 0.01;
       renderer.render(scene, camera);
-      raf = requestAnimationFrame(tick);
+
+      // Measure frame time for adaptive quality
+      if (lastTickTime > 0) recordFrame(now - lastTickTime);
+      lastTickTime = now;
+      adaptQuality();
     };
 
-    const observer = new ResizeObserver(resize);
-    observer.observe(root);
-    resize();
+    // Pause rendering when crystal is scrolled off-screen
+    const visObserver = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          isVisible = e.isIntersecting;
+          if (isVisible) lastTickTime = 0; // reset so we don't get a huge delta
+        }
+      },
+      { rootMargin: "100px" }
+    );
+    visObserver.observe(root);
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(root);
+    applySize();
     tick();
 
     document.addEventListener("astro:before-swap", () => {
       cancelAnimationFrame(raf);
-      observer.disconnect();
+      clearTimeout(resizeTimer);
+      visObserver.disconnect();
+      resizeObserver.disconnect();
       root.removeEventListener("pointermove", onPointerMove);
       renderer.dispose();
       crystalGeometry.dispose();
@@ -467,7 +491,6 @@
       iceMap.dispose();
       glintTexture.dispose();
       envMap.dispose();
-      pmrem.dispose();
     }, { once: true });
   });
 </script>

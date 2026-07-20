@@ -1,6 +1,6 @@
 ---
 import { site } from "../data/site";
-// LogoScene (AI-hexagon model) is preserved (./LogoScene.astro) — swap back any time.
+// LogoScene (AI-hexagon model) is preserved (./LogoScene.astro) - swap back any time.
 import CrystalScene from "./CrystalScene.astro";
 ---
 
@@ -22,7 +22,7 @@ import CrystalScene from "./CrystalScene.astro";
           </h1>
           <p class="mt-6 max-w-xl text-base leading-7 text-[--color-fg-muted]">
             From AI agents and custom software to SaaS platforms, voice systems and enterprise
-            integrations — we design and engineer the complex technology growing businesses rely on.
+            integrations - we design and engineer the complex technology growing businesses rely on.
             If it can be built, we build it.
           </p>
 
@@ -31,13 +31,71 @@ import CrystalScene from "./CrystalScene.astro";
             <a href="#work" class="btn-ghost px-6 py-3.5">See our work</a>
           </div>
 
-          <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
-            <div><div class="display text-2xl text-white">135+</div><div class="mono mt-0.5 text-[--color-fg-dim]">Implementations</div></div>
-            <span class="h-9 w-px bg-white/12"></span>
-            <div><div class="display text-2xl text-white">20+</div><div class="mono mt-0.5 text-[--color-fg-dim]">Industries served</div></div>
-            <span class="h-9 w-px bg-white/12"></span>
-            <div><div class="display text-2xl text-white">15+</div><div class="mono mt-0.5 text-[--color-fg-dim]">Disciplines</div></div>
+          <div class="mt-9 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-x-4" data-hero-meters>
+            <div class="flex items-center gap-2.5">
+              <svg viewBox="0 0 56 46" width="48" height="40" fill="none" class="hero-meter shrink-0" aria-hidden="true">
+                <defs><linearGradient id="hm1" x1="0" y1=".5" x2="1" y2=".5"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a855f7"/></linearGradient></defs>
+                <path d="M10 40A22 22 0 1 1 46 40" stroke="rgba(255,255,255,0.05)" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M10 40A22 22 0 1 1 46 40" stroke="url(#hm1)" stroke-width="4" stroke-linecap="round" stroke-dasharray="0 150" data-arc="57.6"/>
+              </svg>
+              <div><div class="display text-2xl text-white" data-count="135">0+</div><div class="mono mt-0.5 text-[--color-fg-dim] whitespace-nowrap">Implementations</div></div>
+            </div>
+            <span class="h-12 w-px bg-white/8"></span>
+            <div class="flex items-center gap-2.5">
+              <svg viewBox="0 0 56 46" width="48" height="40" fill="none" class="hero-meter shrink-0" aria-hidden="true">
+                <defs><linearGradient id="hm2" x1="0" y1=".5" x2="1" y2=".5"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a855f7"/></linearGradient></defs>
+                <path d="M10 40A22 22 0 1 1 46 40" stroke="rgba(255,255,255,0.05)" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M10 40A22 22 0 1 1 46 40" stroke="url(#hm2)" stroke-width="4" stroke-linecap="round" stroke-dasharray="0 150" data-arc="19.2"/>
+              </svg>
+              <div><div class="display text-2xl text-white" data-count="20">0+</div><div class="mono mt-0.5 text-[--color-fg-dim] whitespace-nowrap">Industries served</div></div>
+            </div>
+            <span class="h-12 w-px bg-white/8"></span>
+            <div class="flex items-center gap-2.5">
+              <svg viewBox="0 0 56 46" width="48" height="40" fill="none" class="hero-meter shrink-0" aria-hidden="true">
+                <defs><linearGradient id="hm3" x1="0" y1=".5" x2="1" y2=".5"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a855f7"/></linearGradient></defs>
+                <path d="M10 40A22 22 0 1 1 46 40" stroke="rgba(255,255,255,0.05)" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M10 40A22 22 0 1 1 46 40" stroke="url(#hm3)" stroke-width="4" stroke-linecap="round" stroke-dasharray="0 150" data-arc="11.5"/>
+              </svg>
+              <div><div class="display text-2xl text-white" data-count="15">0+</div><div class="mono mt-0.5 text-[--color-fg-dim] whitespace-nowrap">Disciplines</div></div>
+            </div>
           </div>
+
+          <script>
+            const container = document.querySelector("[data-hero-meters]");
+            if (container) {
+              const arcs = container.querySelectorAll("[data-arc]");
+              const counts = container.querySelectorAll("[data-count]");
+              const duration = 1800;
+              const ease = (t) => 1 - Math.pow(1 - t, 3);
+              let started = false;
+
+              const run = () => {
+                if (started) return;
+                started = true;
+                const start = performance.now();
+                const tick = (now) => {
+                  const raw = Math.min((now - start) / duration, 1);
+                  const t = ease(raw);
+                  arcs.forEach((arc) => {
+                    const target = parseFloat(arc.dataset.arc);
+                    arc.setAttribute("stroke-dasharray", `${t * target} 150`);
+                  });
+                  counts.forEach((el) => {
+                    const target = parseInt(el.dataset.count);
+                    el.textContent = Math.round(t * target) + "+";
+                  });
+                  if (raw < 1) requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+              };
+
+              const observer = new IntersectionObserver(
+                (entries) => { if (entries[0].isIntersecting) { run(); observer.disconnect(); } },
+                { threshold: 0.3 }
+              );
+              observer.observe(container);
+            }
+          </script>
         </div>
 
         <div class="relative min-h-[300px] lg:min-h-[460px]">
@@ -46,11 +104,30 @@ import CrystalScene from "./CrystalScene.astro";
       </div>
 
       <div class="hidden lg:block">
-        <div class="absolute left-2 top-28 flex h-56 w-5 flex-col items-center gap-5 text-[--color-fg-dim]">
-          <span class="h-16 w-px bg-white/20"></span>
+        <div class="scroll-cue absolute left-2 top-28 flex h-56 w-5 flex-col items-center gap-5 text-[--color-fg-dim]" data-scroll-cue>
+          <span class="scroll-cue-line h-16 w-px bg-white/20"></span>
           <span class="mono [writing-mode:vertical-rl] tracking-[0.22em]">Scroll to explore</span>
         </div>
       </div>
+
+      <script>
+        const cue = document.querySelector("[data-scroll-cue]");
+        if (cue) {
+          let isHidden = false;
+          const onScroll = () => {
+            if (window.scrollY > 60 && !isHidden) {
+              isHidden = true;
+              cue.classList.add("scroll-cue-exit");
+              cue.classList.remove("scroll-cue-enter");
+            } else if (window.scrollY <= 60 && isHidden) {
+              isHidden = false;
+              cue.classList.remove("scroll-cue-exit");
+              cue.classList.add("scroll-cue-enter");
+            }
+          };
+          window.addEventListener("scroll", onScroll, { passive: true });
+        }
+      </script>
     </div>
   </div>
 </section>
