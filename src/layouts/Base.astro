@@ -91,5 +91,46 @@ const jsonLd = {
       );
       document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
     </script>
+
+    <!-- Scroll-driven blur reveal for all text -->
+    <script>
+      const candidates = document.querySelectorAll("main h1, main h2, main h3, main p, main .mono, main blockquote, main figcaption, main span.accent, main .display, footer h3, footer p");
+      const blurEls = [];
+      for (const el of candidates) {
+        if (el.closest("#top")) continue;
+        if (el.closest("[data-hs-section]")) continue;
+        if (el.closest(".marquee")) continue;
+        if (el.closest("header")) continue;
+        if (el.closest("details p")) continue;
+        if (el.closest("[data-hero-meters]")) continue;
+        if (el.parentElement && el.parentElement.classList.contains("blur-reveal")) continue;
+        el.classList.add("blur-reveal");
+        blurEls.push(el);
+      }
+      if (blurEls.length) {
+        let ticking = false;
+        const update = () => {
+          const vh = window.innerHeight;
+          for (const el of blurEls) {
+            const rect = el.getBoundingClientRect();
+            const t = Math.min(1, Math.max(0, (vh - rect.top) / (vh * 0.35)));
+            const e = t * t * (3 - 2 * t);
+            if (e >= 0.99) {
+              el.style.filter = "none";
+              el.style.opacity = "1";
+              el.style.transform = "none";
+            } else {
+              el.style.filter = `blur(${(1 - e) * 12}px)`;
+              el.style.opacity = String(e);
+              el.style.transform = `scale(${1 + (1 - e) * 0.06})`;
+            }
+          }
+          ticking = false;
+        };
+        const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        update();
+      }
+    </script>
   </body>
 </html>
