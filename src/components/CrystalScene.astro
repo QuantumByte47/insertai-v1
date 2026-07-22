@@ -184,7 +184,7 @@
     pmrem.dispose();
 
     const group = new THREE.Group();
-    group.scale.setScalar(0.82);
+    group.scale.setScalar(0.68);
     scene.add(group);
 
     const textureLoader = new THREE.TextureLoader();
@@ -434,19 +434,26 @@
     }
     const neuralEdges = [...edgeSet].map((k) => [Math.floor(k / 100), k % 100]);
 
-    // Connection lines
-    const nEdgePos = new Float32Array(neuralEdges.length * 6);
-    neuralEdges.forEach(([a, b], i) => {
-      nEdgePos[i * 6] = surfaceVerts[a][0]; nEdgePos[i * 6 + 1] = surfaceVerts[a][1]; nEdgePos[i * 6 + 2] = surfaceVerts[a][2];
-      nEdgePos[i * 6 + 3] = surfaceVerts[b][0]; nEdgePos[i * 6 + 4] = surfaceVerts[b][1]; nEdgePos[i * 6 + 5] = surfaceVerts[b][2];
-    });
-    const nEdgeGeom = new THREE.BufferGeometry();
-    nEdgeGeom.setAttribute("position", new THREE.BufferAttribute(nEdgePos, 3));
+    // Dense wireframe lines (all triangle edges - much denser than face edges only)
+    const wireGeom = new THREE.WireframeGeometry(crystalGeometry);
     const nEdgeMat = new THREE.LineBasicMaterial({
-      color: "#9580ff", transparent: true, opacity: 0.22,
+      color: "#8070cc", transparent: true, opacity: 0.12,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
-    neuralGroup.add(new THREE.LineSegments(nEdgeGeom, nEdgeMat));
+    neuralGroup.add(new THREE.LineSegments(wireGeom, nEdgeMat));
+
+    // Second finer layer at slightly different scale for depth
+    const wireGeom2 = new THREE.WireframeGeometry(crystalGeometry);
+    const nEdgeMat2 = new THREE.LineBasicMaterial({
+      color: "#1ed6ff", transparent: true, opacity: 0.06,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const wireLayer2 = new THREE.LineSegments(wireGeom2, nEdgeMat2);
+    wireLayer2.scale.setScalar(1.02);
+    neuralGroup.add(wireLayer2);
+
+    // Keep manual edge list for signal pulse pathfinding
+    const nEdgeGeom = new THREE.BufferGeometry();
 
     // Node sprites at each vertex
     const nColors = ["#675cff", "#1ed6ff", "#b45cff", "#7468ff", "#66dcff"];
@@ -466,7 +473,7 @@
     });
 
     // Signal pulses traveling along edges
-    const NPULSE = 8;
+    const NPULSE = 20;
     const neuralPulses = [];
     for (let i = 0; i < NPULSE; i++) {
       const pm = new THREE.SpriteMaterial({
@@ -479,6 +486,70 @@
       neuralGroup.add(sp);
       neuralPulses.push({ sprite: sp, active: false, edgeIdx: 0, progress: 0, speed: 0 });
     }
+
+    /* ── Lightning flowing INTO stone from below ── */
+    const lightningGroup = new THREE.Group();
+    lightningGroup.rotation.copy(crystal.rotation);
+    group.add(lightningGroup);
+
+    // Bottom surface vertices where bolts connect to the stone
+    const stoneEntryPoints = [
+      [-0.84, -2.04, 0.34], [0.08, -1.82, 0.78], [0.96, -2.18, -0.06],
+      [0.02, -2.38, -0.82], [-1.02, -2.1, -0.36], [-0.1, -2.84, 0.05],
+    ];
+
+    const BOLT_COUNT = 4;
+    const BOLT_SEGS = 12;
+    const boltPosArr = new Float32Array(BOLT_COUNT * BOLT_SEGS * 6);
+    const boltGeom = new THREE.BufferGeometry();
+    boltGeom.setAttribute("position", new THREE.BufferAttribute(boltPosArr, 3));
+    const boltMat = new THREE.LineBasicMaterial({
+      color: "#1ed6ff", transparent: true, opacity: 0.35,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    lightningGroup.add(new THREE.LineSegments(boltGeom, boltMat));
+
+    const boltGlowArr = new Float32Array(BOLT_COUNT * BOLT_SEGS * 6);
+    const boltGlowGeom = new THREE.BufferGeometry();
+    boltGlowGeom.setAttribute("position", new THREE.BufferAttribute(boltGlowArr, 3));
+    const boltGlowMat = new THREE.LineBasicMaterial({
+      color: "#675cff", transparent: true, opacity: 0.15,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    lightningGroup.add(new THREE.LineSegments(boltGlowGeom, boltGlowMat));
+
+    const generateBolts = () => {
+      for (let b = 0; b < BOLT_COUNT; b++) {
+        // Each bolt ends at a real vertex on the stone's bottom surface
+        const entry = stoneEntryPoints[Math.floor(Math.random() * stoneEntryPoints.length)];
+        // Start from a spread-out point well below
+        let x = entry[0] + (Math.random() - 0.5) * 3.5;
+        let y = entry[1] - 2.0 - Math.random() * 1.5;
+        let z = entry[2] + (Math.random() - 0.5) * 2.5;
+
+        for (let s = 0; s < BOLT_SEGS; s++) {
+          const idx = (b * BOLT_SEGS + s) * 6;
+          boltPosArr[idx] = x; boltPosArr[idx + 1] = y; boltPosArr[idx + 2] = z;
+          boltGlowArr[idx] = x; boltGlowArr[idx + 1] = y; boltGlowArr[idx + 2] = z;
+
+          // Converge toward stone entry point with jitter
+          const pull = 0.14 + Math.random() * 0.14;
+          x += (entry[0] - x) * pull + (Math.random() - 0.5) * 0.35 * (1 - s / BOLT_SEGS);
+          y += (entry[1] - y) * pull;
+          z += (entry[2] - z) * pull + (Math.random() - 0.5) * 0.25 * (1 - s / BOLT_SEGS);
+
+          // Last segment snaps exactly to the stone surface
+          if (s === BOLT_SEGS - 1) { x = entry[0]; y = entry[1]; z = entry[2]; }
+
+          boltPosArr[idx + 3] = x; boltPosArr[idx + 4] = y; boltPosArr[idx + 5] = z;
+          boltGlowArr[idx + 3] = x; boltGlowArr[idx + 4] = y; boltGlowArr[idx + 5] = z;
+        }
+      }
+      boltGeom.attributes.position.needsUpdate = true;
+      boltGlowGeom.attributes.position.needsUpdate = true;
+    };
+    generateBolts();
+    let boltTimer = 0;
 
     scene.add(new THREE.HemisphereLight("#e7ffff", "#120747", 0.7));
     const iceKey = new THREE.DirectionalLight("#f5ffff", 1.8);
@@ -503,8 +574,8 @@
     root.addEventListener("pointermove", onPointerMove);
 
     /* ── Click surge + scale ── */
-    const BASE_SCALE = 0.82;
-    const MAX_SCALE = 0.96;
+    const BASE_SCALE = 0.68;
+    const MAX_SCALE = 0.82;
     const SCALE_BUMP = 0.02;
     const SURGE_DURATION = 2.5;
     let targetScale = BASE_SCALE;
@@ -625,6 +696,7 @@
       rim.rotation.copy(crystal.rotation);
       fractures.rotation.copy(crystal.rotation);
       neuralGroup.rotation.copy(crystal.rotation);
+      lightningGroup.rotation.copy(crystal.rotation);
     };
 
     const tick = () => {
@@ -644,6 +716,14 @@
       crystal.rotation.z = 0.2 + Math.sin(t * 0.32) * 0.045;
       syncRotations();
       particleCloud.rotation.y = t * 0.01;
+
+      // Lightning flicker
+      boltTimer += 0.016;
+      if (boltTimer > 0.12 + Math.random() * 0.08) {
+        boltTimer = 0;
+        generateBolts();
+        boltMat.opacity = 0.25 + Math.random() * 0.2;
+      }
 
       // Surge state
       const surgeElapsed = t - surgeTime;
@@ -673,37 +753,33 @@
         }
       }
 
-      // Signal pulses - fast dots on click, normal otherwise
-      const pulseSpawnRate = surgeActive ? 0.18 : 0.012;
+      // Signal pulses - fast neon dots
+      const pulseSpawnRate = surgeActive ? 0.3 : 0.06;
+      const neonColors = ["#1ed6ff", "#66dcff", "#b45cff", "#675cff", "#ffffff"];
       for (const p of neuralPulses) {
         if (p.active) {
           p.progress += p.speed * 0.016;
           if (p.progress >= 1) {
-            p.active = false;
-            p.sprite.visible = false;
-            // Chain: when a pulse finishes during surge, immediately spawn on a new edge
-            if (surgeActive && Math.random() < 0.7) {
-              p.edgeIdx = Math.floor(Math.random() * neuralEdges.length);
-              p.progress = 0;
-              p.speed = 1.0 + Math.random() * 2.0;
-              p.active = true;
-              p.sprite.visible = true;
-            }
+            // Chain: immediately respawn on a new edge
+            p.edgeIdx = Math.floor(Math.random() * neuralEdges.length);
+            p.progress = 0;
+            p.speed = surgeActive ? 2.0 + Math.random() * 3.0 : 1.0 + Math.random() * 1.5;
+            p.sprite.material.color.set(neonColors[Math.floor(Math.random() * neonColors.length)]);
           } else {
             const [a, b] = neuralEdges[p.edgeIdx];
             const va = surfaceVerts[a], vb = surfaceVerts[b];
             p.sprite.position.set(va[0] + (vb[0] - va[0]) * p.progress, va[1] + (vb[1] - va[1]) * p.progress, va[2] + (vb[2] - va[2]) * p.progress);
             const fi = Math.min(p.progress * 5, 1), fo = Math.min((1 - p.progress) * 5, 1);
-            p.sprite.material.opacity = fi * fo * 0.9;
+            p.sprite.material.opacity = fi * fo * 0.95;
           }
         } else if (Math.random() < pulseSpawnRate) {
           p.edgeIdx = Math.floor(Math.random() * neuralEdges.length);
           p.progress = 0;
-          p.speed = surgeActive ? 1.2 + Math.random() * 2.0 : 0.4 + Math.random() * 0.6;
+          p.speed = surgeActive ? 2.0 + Math.random() * 3.0 : 1.0 + Math.random() * 1.5;
           p.active = true;
           p.sprite.visible = true;
-          p.sprite.material.color.set(surgeActive ? ["#ffffff", "#c0f4ff", "#d4f0ff"][Math.floor(Math.random() * 3)] : ["#ffffff", "#22d3ee", "#c084fc"][Math.floor(Math.random() * 3)]);
-          p.sprite.scale.setScalar(0.06);
+          p.sprite.material.color.set(neonColors[Math.floor(Math.random() * neonColors.length)]);
+          p.sprite.scale.setScalar(0.07);
         }
       }
 
@@ -756,6 +832,10 @@
       nEdgeMat.dispose();
       neuralNodes.forEach((n) => n.sprite.material.dispose());
       neuralPulses.forEach((p) => p.sprite.material.dispose());
+      wireGeom.dispose(); nEdgeMat.dispose();
+      wireGeom2.dispose(); nEdgeMat2.dispose();
+      boltGeom.dispose(); boltMat.dispose();
+      boltGlowGeom.dispose(); boltGlowMat.dispose();
     }, { once: true });
   });
 </script>

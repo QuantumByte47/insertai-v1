@@ -265,7 +265,7 @@ body::before {
 
 .crystal-scene {
   position: relative;
-  min-height: 460px;
+  min-height: 620px;
   width: 100%;
   contain: layout style;
 }
@@ -276,6 +276,8 @@ body::before {
   width: 114%;
   height: 118%;
   will-change: contents;
+  -webkit-mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
 }
 
 .crystal-sheen {
@@ -325,7 +327,7 @@ body::before {
 
 @media (max-width: 900px) {
   .site-shell { width: min(100% - 1.2rem, 1400px); }
-  .crystal-scene { min-height: 300px; }
+  .crystal-scene { min-height: 420px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
